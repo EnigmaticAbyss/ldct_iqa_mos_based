@@ -1,0 +1,3 @@
+https://docs.unsloth.ai/get-started/unsloth-notebooks
+https://github.com/apple/ml-mgie
+https://github.com/stepfun-ai/Step1X-Edit

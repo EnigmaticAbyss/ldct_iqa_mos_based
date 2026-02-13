@@ -1,0 +1,47 @@
+{
+  "_comment": "GRPO config for MedGemma VLM – LDCT IQA (Phase 3)",
+
+  "output_dir": "models/medgemma-ldct-grpo",
+  "logging_dir": "logs/grpo",
+
+  "_comment_model": "Model is loaded from SFT checkpoint if provided, otherwise base model",
+  "num_train_epochs": 1,
+
+  "_comment_batching": "Effective batch = per_device * grad_accum * num_generations",
+  "per_device_train_batch_size": 1,
+  "gradient_accumulation_steps": 8,
+
+  "_comment_lr": "Lower LR for RL is critical",
+  "learning_rate": 5e-6,
+  "weight_decay": 0.0,
+  "warmup_ratio": 0.05,
+
+  "_comment_grpo": "GRPO-specific parameters",
+  "beta": 0.1,
+  "num_generations": 4,
+
+  "_comment_lengths": "Prompt and generation limits",
+  "max_prompt_length": 1024,
+  "max_completion_length": 128,
+
+  "_comment_logging": "Logging and checkpointing",
+  "logging_steps": 10,
+  "save_steps": 200,
+  "save_total_limit": 2,
+
+  "_comment_optim": "Optimizer & precision",
+  "optim": "paged_adamw_8bit",
+  "lr_scheduler_type": "cosine",
+  "fp16": false,
+  "bf16": true,
+
+  "_comment_grad": "Stability settings",
+  "max_grad_norm": 1.0,
+  "gradient_checkpointing": true,
+
+  "_comment_rewards": "Weights for [format, accuracy, reasoning]",
+  "reward_weights": [1.0, 1.0, 0.25],
+
+  "_comment_reporting": "Disable external loggers unless needed",
+  "report_to": "none"
+}

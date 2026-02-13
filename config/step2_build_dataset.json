@@ -1,0 +1,29 @@
+{
+  "system_prompt": "You are a clinical assistant specialized in LDCT image quality assessment. Provide careful, concise reasoning and a final quality score.",
+  "assistant_template": "Reasoning:\n{reasoning}\n\nFinal Rating (MOS): {rating}\nExplanation: {explanation}",
+  "output_hf_dataset": true,
+  "hf_out_root": "data/processed",
+  "random_seed": 42,
+
+  "val_split": {
+    "from_subset": "train",
+    "val_ratio": 0.10,
+    "grouping": { "mode": "none" },  
+    "stratify_by_category": true
+  },
+
+  "subsets": [
+    {
+      "name": "train",
+      "images_dir": "data/ct_png/train/LDCT",
+      "mos_json":   "data/mos/train_ldct_mos.json",
+      "out_jsonl":  "data/processed/train/_pre_split_train_pool.jsonl"
+    },
+    {
+      "name": "test",
+      "images_dir": "data/ct_png/test/LDCT",
+      "mos_json":   "data/mos/test_ldct_mos.json",
+      "out_jsonl":  "data/processed/test/iqa_sft_test.jsonl"
+    }
+  ]
+}

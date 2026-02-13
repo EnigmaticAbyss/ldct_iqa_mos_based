@@ -1,0 +1,39 @@
+# Virtual environments
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment variables
+.env
+
+# Logs
+*.log
+
+# Mac / Windows
+.DS_Store
+Thumbs.db
+# Large datasets
+data/
+datasets/
+
+# Model weights
+*.pth
+*.pt
+*.ckpt
+*.h5
+
+# Logs
+runs/
+logs/
+
+# TensorBoard
+events.out.tfevents.*
+
+# Virtual env
+venv/

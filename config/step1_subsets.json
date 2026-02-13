@@ -1,0 +1,26 @@
+{
+  "mode": "linear_max",          
+  "p_low": 0.5,                  
+  "p_high": 99.5,
+  "wl": 40.0,                   
+  "ww": 400.0,
+  "png_quality": 95,
+
+  "subsets": [
+    {
+      "name": "train",
+      "src_dir": "data/ct_tif/train/LDCT",
+      "mos_json": "data/mos/train_ldct_mos.json",
+      "out_dir": "data/ct_png/train/LDCT"
+    },
+    {
+      "name": "test",
+      "src_dir": "data/ct_tif/test/LDCT",
+      "mos_json": "data/mos/test_ldct_mos.json",
+      "out_dir": "data/ct_png/test/LDCT"
+    }
+  ]
+}
+
+
+

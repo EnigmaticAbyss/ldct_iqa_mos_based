@@ -1,0 +1,51 @@
+{
+  "model_name": "google/medgemma-4b-it",
+  "output_dir": "outputs/vlm_iqa_sft_lora",
+  "log    ging_dir": "logs/sft",
+  "data_dir": "data/processed",
+
+  "use_jsonl": false,
+
+  "max_length": 2048,
+
+  "num_train_epochs": 1,
+  "per_device_train_batch_size": 1,
+  "per_device_eval_batch_size": 1,
+  "gradient_accumulation_steps": 4,
+
+  "learning_rate": 0.0002,
+  "weight_decay": 0.01,
+  "warmup_ratio": 0.1,
+
+  "logging_steps": 10,
+  "save_strategy": "steps",
+  "save_steps": 100,
+  "evaluation_strategy": "steps",
+  "eval_steps": 100,
+  "save_total_limit": 3,
+
+  "remove_unused_columns": false,
+  "dataset_kwargs": { "skip_prepare_dataset": true },
+
+  "optim": "paged_adamw_8bit",
+  "lr_scheduler_type": "cosine",
+
+  "fp16": false,
+  "bf16": true,
+
+  "max_grad_norm": 1.0,
+  "gradient_checkpointing": true,
+
+  "use_4bit": true,
+  "use_8bit": false,
+
+  "lora": {
+    "r": 16,
+    "alpha": 32,
+    "dropout": 0.05,
+    "target_modules": ["q_proj", "v_proj"]
+  },
+
+  "use_balanced_debug_subset": false,
+  "debug_subset_size": 200
+}
