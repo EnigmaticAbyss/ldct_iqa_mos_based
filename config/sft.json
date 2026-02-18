@@ -1,0 +1,54 @@
+{
+  "sft_mode": "trl_sft",
+
+  "model_name": "YOUR_ORG_OR_HF/medgemma-1.5-VLM",
+  "data_dir": "data/processed",
+  "use_jsonl": false,
+
+  "output_dir": "models/medgemma15_iqa_sft",
+  "logging_dir": "logs/sft",
+  "seed": 42,
+
+  "max_length": 2048,
+
+  "num_train_epochs": 1.0,
+  "per_device_train_batch_size": 1,
+  "per_device_eval_batch_size": 1,
+  "gradient_accumulation_steps": 4,
+
+  "learning_rate": 0.0002,
+  "weight_decay": 0.01,
+  "warmup_ratio": 0.1,
+
+  "logging_steps": 10,
+  "save_steps": 100,
+  "eval_steps": 100,
+  "save_total_limit": 3,
+
+  "fp16": false,
+  "bf16": true,
+
+  "use_4bit": true,
+  "use_8bit": false,
+  "bnb_compute_dtype": "bf16",
+
+  "remove_unused_columns": false,
+  "dataset_kwargs": { "skip_prepare_dataset": true },
+
+  "system_prompt": "You are a medical image quality assessment assistant.",
+  "user_text": "Predict MOS score.",
+
+  "lora_enabled": true,
+  "lora_scope": "both",
+  "lora_coverage": "linear_only",
+  "lora_include_patterns": null,
+  "lora_exclude_patterns": null,
+  "lora_r": 16,
+  "lora_alpha": 32,
+  "lora_dropout": 0.05,
+
+  "regression_loss_type": "mse",
+  "regression_huber_delta": 0.5,
+  "mos_min": 0.0,
+  "mos_max": 4.0
+}

@@ -1,0 +1,30 @@
+{
+  "log_dir": "logs/preprocess",
+  "log_level": "INFO",
+
+  "mode": "keep_tif",
+  "norm": "percentile",
+  "p_low": 0.5,
+  "p_high": 99.5,
+  "resize": false,
+  "resize_w": 512,
+  "resize_h": 512,
+
+  "splits": {
+    "train": {
+      "tif_dir": "data/ct_tif/train/LDCT",
+      "mos_json": "data/mos/train_ldct_mos.json",
+      "out_jsonl": "data/processed/base_train.jsonl",
+      "make_val_split": true,
+      "val_ratio": 0.1,
+      "seed": 42
+    },
+
+    "test": {
+      "tif_dir": "data/ct_tif/test/LDCT",
+      "mos_json": "data/mos/test_ldct_mos.json",
+      "out_jsonl": "data/processed/base_test.jsonl",
+      "make_val_split": false
+    }
+  }
+}

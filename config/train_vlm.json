@@ -1,0 +1,95 @@
+{
+  "mode": "regression",
+
+  "model_name": "YOUR_MEDGEMMA_1_5_HF_ID",
+  "output_dir": "models/medgemma1.5-ldct",
+  "logging_dir": "logs/ldct_train",
+  "data_dir": "data/processed",
+  "use_jsonl": false,
+
+  "use_4bit": true,
+  "use_8bit": false,
+
+  "fp16": false,
+  "bf16": true,
+  "gradient_checkpointing": true,
+
+  "lora": {
+    "enabled": true,
+
+    "scope": "both",
+    "coverage": "linear_only",
+
+    "r": 16,
+    "alpha": 32,
+    "dropout": 0.05,
+
+    "_comment_patterns": "Optional override if MedGemma module names differ. Regex patterns on full module names.",
+    "include_patterns": null,
+    "exclude_patterns": []
+  },
+
+  "reg": {
+    "num_train_epochs": 3,
+    "per_device_train_batch_size": 1,
+    "per_device_eval_batch_size": 1,
+    "gradient_accumulation_steps": 8,
+
+    "learning_rate": 0.0001,
+    "weight_decay": 0.01,
+    "warmup_ratio": 0.1,
+
+    "logging_steps": 10,
+    "save_strategy": "steps",
+    "save_steps": 200,
+    "evaluation_strategy": "steps",
+    "eval_steps": 200,
+    "save_total_limit": 2,
+
+    "max_grad_norm": 1.0,
+
+    "loss_type": "mse",
+    "huber_delta": 0.5,
+    "mos_min": 0.0,
+    "mos_max": 4.0,
+
+    "dummy_text": "",
+
+    "report_to": "tensorboard"
+  },
+
+  "fmt": {
+    "max_samples": 500,
+
+    "num_train_epochs": 1,
+    "per_device_train_batch_size": 1,
+    "per_device_eval_batch_size": 1,
+    "gradient_accumulation_steps": 4,
+
+    "learning_rate": 0.0002,
+    "weight_decay": 0.0,
+    "warmup_ratio": 0.1,
+
+    "logging_steps": 10,
+    "save_steps": 200,
+    "eval_steps": 200,
+    "save_total_limit": 2,
+
+    "max_grad_norm": 1.0,
+
+    "max_length": 1024,
+
+    "system_text": "",
+    "user_text": "",
+    "include_explanation": false,
+
+    "assistant_template": "<answer>{\"rating\": {rating:.3f}}</answer>",
+
+    "dataset_kwargs": { "skip_prepare_dataset": true },
+
+    "optim": "paged_adamw_8bit",
+    "lr_scheduler_type": "cosine",
+
+    "report_to": "tensorboard"
+  }
+}
