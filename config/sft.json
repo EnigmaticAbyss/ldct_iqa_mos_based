@@ -2,10 +2,10 @@
   "sft_mode": "trl_sft",
 
   "model_name": "YOUR_ORG_OR_HF/medgemma-1.5-VLM",
-  "data_dir": "data/processed",
+  "data_dir": "datasets/processed",
   "use_jsonl": false,
 
-  "output_dir": "models/medgemma15_iqa_sft",
+  "output_dir": "output/model/medgemma15_iqa_sft",
   "logging_dir": "logs/sft",
   "seed": 42,
 
