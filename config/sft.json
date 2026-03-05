@@ -1,9 +1,11 @@
 {
   "sft_mode": "trl_sft",
+  "model_name": "google/medgemma-1.5-4b-it",
 
-  "model_name": "YOUR_ORG_OR_HF/medgemma-1.5-VLM",
-  "data_dir": "datasets/processed",
-  "use_jsonl": false,
+  "load_prebuilt_sft_dataset": true,
+  "train_dataset_dir": "datasets/processed/sft_train_dataset",
+  "val_dataset_dir": "datasets/processed/sft_val_dataset",
+  "test_dataset_dir": "datasets/processed/sft_test_dataset",
 
   "output_dir": "output/model/medgemma15_iqa_sft",
   "logging_dir": "logs/sft",
@@ -35,9 +37,6 @@
   "remove_unused_columns": false,
   "dataset_kwargs": { "skip_prepare_dataset": true },
 
-  "system_prompt": "You are a medical image quality assessment assistant.",
-  "user_text": "Predict MOS score.",
-
   "lora_enabled": true,
   "lora_scope": "both",
   "lora_coverage": "linear_only",
@@ -45,10 +44,5 @@
   "lora_exclude_patterns": null,
   "lora_r": 16,
   "lora_alpha": 32,
-  "lora_dropout": 0.05,
-
-  "regression_loss_type": "mse",
-  "regression_huber_delta": 0.5,
-  "mos_min": 0.0,
-  "mos_max": 4.0
+  "lora_dropout": 0.05
 }

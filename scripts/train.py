@@ -21,19 +21,23 @@ def main():
     mode = cfg.get("sft_mode", "").strip().lower()
     if mode not in ("regression", "trl_sft"):
         raise ValueError("config must include sft_mode = 'regression' or 'trl_sft'")
+   
+   
+    cfg_for_trainer = dict(cfg)
+    cfg_for_trainer.pop("sft_mode", None)  
 
     # Lazy imports so errors are cleaner if optional deps missing
     if mode == "regression":
         from src.trainers.regression_trainer import LDCTRegressionTrainer
 
-        trainer = LDCTRegressionTrainer(cfg)
+        trainer = LDCTRegressionTrainer(cfg_for_trainer)
         trainer.run()
         return
 
     if mode == "trl_sft":
         from src.trainers.sft_trainer import LDCTSFTTrainer
 
-        trainer = LDCTSFTTrainer(cfg)
+        trainer = LDCTSFTTrainer(cfg_for_trainer)
         trainer.run()
         return
 

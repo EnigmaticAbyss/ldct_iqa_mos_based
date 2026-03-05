@@ -8,9 +8,8 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 import torch
-from datasets import Dataset
+from datasets import Dataset, load_from_disk
 from transformers import AutoModelForCausalLM, AutoProcessor
-
 from trl import SFTTrainer, SFTConfig
 from peft import get_peft_model
 
@@ -25,23 +24,26 @@ logger = logging.getLogger("sft_trainer")
 
 @dataclass
 class SFTTrainConfig:
-    # I/O
     model_name: str
+
+    # NEW: prebuilt Arrow datasets
+    load_prebuilt_sft_dataset: bool = False
+    train_dataset_dir: Optional[str] = None
+    val_dataset_dir: Optional[str] = None
+    test_dataset_dir: Optional[str] = None
+
+    # Old base loading (only used if load_prebuilt_sft_dataset=False)
     data_dir: str = "data/processed"
     use_jsonl: bool = False
+    system_prompt: str = "You are a medical image quality assessment assistant."
+    user_text: str = "Predict MOS score."
+
     output_dir: str = "models/medgemma-trl-sft"
     logging_dir: str = "logs/sft"
     seed: int = 42
 
-    # Chat formatting (NO stored prompts in dataset; we build messages here)
-    system_prompt: str = "You are a medical image quality assessment assistant."
-    user_text: str = "Predict MOS score."
-    assistant_format: str = "answer_json"  # reserved for future variants
-
-    # Sequence length
     max_length: int = 2048
 
-    # Training
     num_train_epochs: float = 1.0
     per_device_train_batch_size: int = 1
     per_device_eval_batch_size: int = 1
@@ -54,23 +56,19 @@ class SFTTrainConfig:
     eval_steps: int = 100
     save_total_limit: int = 3
 
-    # Precision
     fp16: bool = False
     bf16: bool = True
 
-    # Quantization
     use_4bit: bool = True
     use_8bit: bool = False
     bnb_compute_dtype: str = "bf16"
 
-    # TRL-required
     remove_unused_columns: bool = False
-    dataset_kwargs: Optional[dict] = None  # e.g. {"skip_prepare_dataset": True}
+    dataset_kwargs: Optional[dict] = None
 
-    # LoRA control
     lora_enabled: bool = True
-    lora_scope: str = "llm"                # "llm" | "vision" | "both"
-    lora_coverage: str = "linear_only"     # "linear_only" | "linear_and_conv" | "full_finetune"
+    lora_scope: str = "llm"
+    lora_coverage: str = "linear_only"
     lora_include_patterns: Optional[list[str]] = None
     lora_exclude_patterns: Optional[list[str]] = None
     lora_r: int = 16
@@ -96,29 +94,35 @@ class LDCTSFTTrainer:
     # ---------------- Data ---------------- #
 
     def load_data(self):
+        if self.cfg.load_prebuilt_sft_dataset:
+            if not self.cfg.train_dataset_dir or not self.cfg.val_dataset_dir:
+                raise ValueError("load_prebuilt_sft_dataset=true requires train_dataset_dir and val_dataset_dir")
+
+            logger.info("Loading PREBUILT SFT Arrow datasets from disk...")
+            self.train_ds = load_from_disk(self.cfg.train_dataset_dir)
+            self.val_ds = load_from_disk(self.cfg.val_dataset_dir)
+
+            DatasetLoader.require_columns(self.train_ds, ["messages", "image_path", "mos_score"], name="train_sft")
+            DatasetLoader.require_columns(self.val_ds, ["messages", "image_path", "mos_score"], name="val_sft")
+
+            logger.info(f"Loaded prebuilt datasets | train={len(self.train_ds)} val={len(self.val_ds)}")
+            return
+
+        # else: old behavior (build messages each run)
         loader = DatasetLoader(data_dir=self.cfg.data_dir, use_jsonl=self.cfg.use_jsonl)
         train, val = loader.load_train_val()
 
-        # Base required columns
         DatasetLoader.require_columns(train, ["image_path", "mos_score"], name="train")
         DatasetLoader.require_columns(val, ["image_path", "mos_score"], name="val")
 
-        # Build messages from MOS (no prompts stored in dataset)
-        self.train_ds = build_format_sft_dataset(
-            train,
-            system_prompt=self.cfg.system_prompt,
-            user_text=self.cfg.user_text,
-        )
-        self.val_ds = build_format_sft_dataset(
-            val,
-            system_prompt=self.cfg.system_prompt,
-            user_text=self.cfg.user_text,
-        )
+        self.train_ds = build_format_sft_dataset(train, system_prompt=self.cfg.system_prompt, user_text=self.cfg.user_text)
+        self.val_ds = build_format_sft_dataset(val, system_prompt=self.cfg.system_prompt, user_text=self.cfg.user_text)
 
         logger.info(f"Built TRL-format datasets | train={len(self.train_ds)} val={len(self.val_ds)}")
         DatasetLoader.require_columns(self.train_ds, ["messages", "image_path", "mos_score"], name="train_sft")
         DatasetLoader.require_columns(self.val_ds, ["messages", "image_path", "mos_score"], name="val_sft")
 
+    # (rest of file unchanged)
     # ---------------- Model ---------------- #
 
     def load_model(self):
