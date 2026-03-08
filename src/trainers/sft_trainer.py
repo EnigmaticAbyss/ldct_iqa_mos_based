@@ -17,8 +17,13 @@ from src.data.loaders import DatasetLoader
 from src.data.format_builders import build_format_sft_dataset
 from src.data.collators import FormatSFTCollator
 from src.models.lora_adapters import resolve_lora_targets, build_lora_config_from_settings
-from src.trainers.common import setup_logging, set_seed, build_bnb_config, ProcessorSaveCallback
-
+from src.trainers.common import (
+    setup_logging,
+    set_seed,
+    build_bnb_config,
+    ProcessorSaveCallback,
+    train_with_optional_resume,
+)
 logger = logging.getLogger("sft_trainer")
 
 
@@ -224,7 +229,7 @@ class LDCTSFTTrainer:
         self.load_model()
         self.build_trainer()
 
-        out = self.trainer.train()
+        out = train_with_optional_resume(self.trainer, self.cfg.output_dir, logger)        
         logger.info("Training finished.")
 
         Path(self.cfg.output_dir).mkdir(parents=True, exist_ok=True)

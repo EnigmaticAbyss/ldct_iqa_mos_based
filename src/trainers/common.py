@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -107,3 +108,32 @@ def get_device_info() -> DeviceInfo:
         except Exception:
             bf16_supported = False
     return DeviceInfo(device=device, is_cuda=is_cuda, bf16_supported=bf16_supported)
+def find_latest_checkpoint(output_dir: str | Path) -> Optional[str]:
+    output_dir = Path(output_dir)
+    if not output_dir.exists():
+        return None
+
+    candidates = []
+    for p in output_dir.iterdir():
+        if not p.is_dir():
+            continue
+        m = re.fullmatch(r"checkpoint-(\d+)", p.name)
+        if m:
+            candidates.append((int(m.group(1)), p))
+
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda x: x[0])
+    return str(candidates[-1][1])
+
+
+def train_with_optional_resume(trainer, output_dir: str | Path, logger: logging.Logger):
+    latest_ckpt = find_latest_checkpoint(output_dir)
+
+    if latest_ckpt is not None:
+        logger.info(f"Resuming training from checkpoint: {latest_ckpt}")
+        return trainer.train(resume_from_checkpoint=latest_ckpt)
+
+    logger.info("No checkpoint found. Starting training from scratch.")
+    return trainer.train()

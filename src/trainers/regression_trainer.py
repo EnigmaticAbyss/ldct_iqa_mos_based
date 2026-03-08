@@ -15,7 +15,13 @@ from src.data.loaders import DatasetLoader
 from src.data.collators import MOSRegressionCollator
 from src.models.mos_regression import VLMForMOSRegression, infer_hidden_size
 from src.models.lora_adapters import resolve_lora_targets, build_lora_config_from_settings
-from src.trainers.common import setup_logging, set_seed, build_bnb_config, ProcessorSaveCallback
+from src.trainers.common import (
+    setup_logging,
+    set_seed,
+    build_bnb_config,
+    ProcessorSaveCallback,
+    train_with_optional_resume,
+)
 
 from peft import get_peft_model
 
@@ -204,8 +210,7 @@ class LDCTRegressionTrainer:
         self.load_model()
         self.build_trainer()
 
-        out = self.trainer.train()
-        logger.info("Training finished.")
+        out = train_with_optional_resume(self.trainer, self.cfg.output_dir, logger)
 
         Path(self.cfg.output_dir).mkdir(parents=True, exist_ok=True)
 
