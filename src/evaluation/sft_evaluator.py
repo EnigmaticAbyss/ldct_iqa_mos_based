@@ -16,8 +16,8 @@ from src.data.loaders import DatasetLoader
 from src.data.format_builders import build_format_sft_dataset
 from src.evaluation.metrics import compute_all_metrics
 from src.evaluation.parsers import extract_rating
+from src.evaluation.io import save_predictions_csv, save_results_json
 from src.evaluation.plotting import save_scatter_plot, save_error_histogram
-
 
 logger = logging.getLogger("sft_evaluator")
 
@@ -179,8 +179,16 @@ class SFTEvaluator:
         for k, v in metrics.items():
             logger.info(f"{k}: {v}")
 
-        save_scatter_plot(y_true, preds, "logs/eval/sft_scatter.png")
-        save_error_histogram(y_true, preds, "logs/eval/sft_error_hist.png")
+        save_scatter_plot(y_true, preds, "outputs/eval/sft_scatter.png")
+        save_error_histogram(y_true, preds, "outputs/eval/sft_error_hist.png")
+        image_paths = list(test_ds["image_path"])        
+        save_predictions_csv(
+            image_paths=image_paths,
+            y_true=y_true,
+            y_pred=preds,
+            raw_outputs=outputs,
+            out_path="outputs/eval/sft_predictions.csv",
+        )
         return {
             "metrics": metrics,
             "num_samples": len(test_ds),
