@@ -39,4 +39,3 @@ events.out.tfevents.*
 venv/
 output/
 
-run.sh
