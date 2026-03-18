@@ -37,3 +37,6 @@ events.out.tfevents.*
 
 # Virtual env
 venv/
+output/
+
+run.sh

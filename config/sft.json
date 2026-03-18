@@ -7,13 +7,13 @@
   "val_dataset_dir": "datasets/processed/sft_val_dataset",
   "test_dataset_dir": "datasets/processed/sft_test_dataset",
 
-  "output_dir": "output/model/medgemma15_iqa_sft",
+  "output_dir": "output/model/medgemma15_iqa_sft_test",
   "logging_dir": "logs/sft",
   "seed": 42,
 
   "max_length": 2048,
 
-  "num_train_epochs": 1.0,
+  "num_train_epochs": 3.0,
   "per_device_train_batch_size": 1,
   "per_device_eval_batch_size": 1,
   "gradient_accumulation_steps": 4,

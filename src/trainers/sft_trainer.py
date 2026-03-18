@@ -195,10 +195,12 @@ class LDCTSFTTrainer:
             logging_steps=self.cfg.logging_steps,
             save_steps=self.cfg.save_steps,
             eval_steps=self.cfg.eval_steps,
-            evaluation_strategy="steps",
+            eval_strategy="steps",  
             save_strategy="steps",
             save_total_limit=self.cfg.save_total_limit,
-
+            assistant_only_loss=False,
+            # assistant_only_loss=False,
+           
             # IMPORTANT for custom multimodal collator
             remove_unused_columns=self.cfg.remove_unused_columns,
             dataset_kwargs=self.cfg.dataset_kwargs,
@@ -207,7 +209,7 @@ class LDCTSFTTrainer:
             bf16=self.cfg.bf16,
 
             report_to=["tensorboard"],
-            label_pad_token_id=-100,
+            # label_pad_token_id=-100,
         )
 
         self.trainer = SFTTrainer(
