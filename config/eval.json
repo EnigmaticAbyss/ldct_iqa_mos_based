@@ -1,10 +1,11 @@
+
 {
   "eval_mode": "sft",
-  "model_dir": "output/model/medgemma15_iqa_sft",
+  "model_dir": "google/medgemma-1.5-4b-it",
   "data_dir": "datasets/processed",
   "use_jsonl": true,
   "system_prompt": "You are a medical image quality assessment assistant.",
   "user_text": "Predict MOS score.",
   "device": null,
-  "output_path": "output/eval/sft_eval_results.json"
+  "output_path": "output/eval/base_vlm_eval_results.json"
 }
