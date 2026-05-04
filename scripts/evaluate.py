@@ -37,6 +37,8 @@ def main():
 
         evaluator = SFTEvaluator(
             model_dir=cfg["model_dir"],
+            base_model_name=cfg.get("base_model_name", None),
+            is_peft_adapter=cfg.get("is_peft_adapter", False),
             data_dir=cfg.get("data_dir", "datasets/processed"),
             use_jsonl=cfg.get("use_jsonl", False),
             system_prompt=cfg.get(
@@ -55,3 +57,13 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    # python -m scripts.compare_models --config config/compare_models.json

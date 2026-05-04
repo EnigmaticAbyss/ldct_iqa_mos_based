@@ -41,8 +41,13 @@ class SFTEvaluator:
         system_prompt: str = "You are a medical image quality assessment assistant.",
         user_text: str = "Predict MOS score.",
         device: Optional[str] = None,
+        base_model_name: Optional[str] = None,
+        is_peft_adapter: bool = False,
     ):
-        self.model_dir = Path(model_dir)
+        self.model_dir = str(model_dir)
+        self.base_model_name = base_model_name
+        self.is_peft_adapter = is_peft_adapter
+
         self.data_dir = data_dir
         self.use_jsonl = use_jsonl
 
@@ -55,8 +60,7 @@ class SFTEvaluator:
         self.processor: AutoProcessor | None = None
 
     def load_model(self):
-        logger.info(f"Loading SFT model from {self.model_dir}")
-        base_model_name = "google/medgemma-1.5-4b-it"   # replace if different
+        logger.info(f"Loading SFT evaluator model from: {self.model_dir}")
 
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -64,33 +68,78 @@ class SFTEvaluator:
             bnb_4bit_quant_type="nf4",
             bnb_4bit_use_double_quant=True,
         )
+        # Safety check:
+        # If model_dir contains adapter_config.json, it is a PEFT/LoRA adapter,
+        # so it should not be loaded as a plain full model.
+        adapter_config = Path(self.model_dir) / "adapter_config.json"
 
-        base_model = AutoModelForImageTextToText.from_pretrained(
-            base_model_name,
-            device_map="auto",
-            quantization_config=bnb_config,
-            low_cpu_mem_usage=True,
-            trust_remote_code=True,
-        )
+        if adapter_config.exists() and not self.is_peft_adapter:
+            raise ValueError(
+                f"{self.model_dir} contains adapter_config.json, so it looks like a PEFT/LoRA adapter. "
+                "Set is_peft_adapter=True and provide base_model_name."
+            )
+        if self.is_peft_adapter:
+            if not self.base_model_name:
+                raise ValueError(
+                    "is_peft_adapter=True requires base_model_name in eval config."
+                )
 
-        self.processor = AutoProcessor.from_pretrained(
-            self.model_dir,
-            trust_remote_code=True,
-    )
+            logger.info(f"Loading base model: {self.base_model_name}")
 
-        self.model = PeftModel.from_pretrained(
-            base_model,
-            self.model_dir,
-    )
+            base_model = AutoModelForImageTextToText.from_pretrained(
+                self.base_model_name,
+                device_map="auto",
+                quantization_config=bnb_config,
+                low_cpu_mem_usage=True,
+                trust_remote_code=True,
+            )
 
-        self.processor = AutoProcessor.from_pretrained(
-        base_model_name,
-            trust_remote_code=True,
-    )
+            logger.info(f"Loading PEFT adapter from: {self.model_dir}")
+
+            self.model = PeftModel.from_pretrained(
+                base_model,
+                self.model_dir,
+            )
+
+            # Prefer processor saved with your adapter checkpoint.
+            # If not available, fall back to base model processor.
+            try:
+                self.processor = AutoProcessor.from_pretrained(
+                    self.model_dir,
+                    trust_remote_code=True,
+                    use_fast=False,
+                )
+                logger.info("Loaded processor from adapter directory.")
+            except Exception as e:
+                logger.warning(
+                    f"Could not load processor from adapter dir: {e}. "
+                    f"Falling back to base model processor."
+                )
+                self.processor = AutoProcessor.from_pretrained(
+                    self.base_model_name,
+                    trust_remote_code=True,
+                    use_fast=False,
+                )
+
+        else:
+            logger.info("Loading plain/base VLM without PEFT adapter.")
+
+            self.model = AutoModelForImageTextToText.from_pretrained(
+                self.model_dir,
+                device_map="auto",
+                quantization_config=bnb_config,
+                low_cpu_mem_usage=True,
+                trust_remote_code=True,
+            )
+
+            self.processor = AutoProcessor.from_pretrained(
+                self.model_dir,
+                trust_remote_code=True,
+                use_fast=False,
+            )
 
         self.model.eval()
-        logger.info("Base model + adapter + processor loaded"
-                 )
+        logger.info("Model + processor loaded.")
     def load_dataset(self) -> Dataset:
         loader = DatasetLoader(data_dir=self.data_dir, use_jsonl=self.use_jsonl)
 
@@ -187,7 +236,7 @@ class SFTEvaluator:
             y_true=y_true,
             y_pred=preds,
             raw_outputs=outputs,
-            out_path="outputs/eval/sft_predictions.csv",
+            out_path="output/eval/sft_predictions.csv",
         )
 
         return {

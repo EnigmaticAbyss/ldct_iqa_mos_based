@@ -27,7 +27,6 @@ cd /home/woody/iwi5/iwi5255h/ldct_iqa_mos_based
 
 
 python -m scripts.evaluate --config config/eval.json
-# python -m scripts.compare_models --config config/compare_models.json
 
 
 
