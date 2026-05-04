@@ -3,11 +3,11 @@
   "models": [
     {
       "name": "base_vlm",
-      "path": "output/eval/base_vlm_eval_results.json"
+      "path": "output/eval/base_vlm/base_vlm_eval_results.json"
     },
     {
       "name": "sft_trl",
-      "path": "output/eval/sft_eval_results.json"
+      "path": "output/eval/sft/sft_eval_results.json"
     }
 
   ]

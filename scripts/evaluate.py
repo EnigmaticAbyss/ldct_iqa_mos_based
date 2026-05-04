@@ -16,6 +16,8 @@ def main():
     args = ap.parse_args()
 
     cfg = load_json(args.config)
+    output_path = Path(cfg.get("output_path", "logs/eval/evaluation_results.json"))
+    output_dir = Path(cfg.get("output_dir", output_path.parent))
 
     mode = str(cfg.get("eval_mode", "")).strip().lower()
     if mode not in ("regression", "sft"):
@@ -47,10 +49,10 @@ def main():
             ),
             user_text=cfg.get("user_text", "Predict MOS score."),
             device=cfg.get("device", None),
+            output_dir=output_dir,
         )
         results = evaluator.run()
 
-    output_path = cfg.get("output_path", "logs/eval/evaluation_results.json")
     evaluator.save_results(results, output_path)
     print(json.dumps(results, indent=2))
 

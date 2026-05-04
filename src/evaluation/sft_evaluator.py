@@ -43,10 +43,12 @@ class SFTEvaluator:
         device: Optional[str] = None,
         base_model_name: Optional[str] = None,
         is_peft_adapter: bool = False,
+        output_dir: str | Path = "output/eval/sft",
     ):
         self.model_dir = str(model_dir)
         self.base_model_name = base_model_name
         self.is_peft_adapter = is_peft_adapter
+        self.output_dir = Path(output_dir)
 
         self.data_dir = data_dir
         self.use_jsonl = use_jsonl
@@ -159,6 +161,10 @@ class SFTEvaluator:
         raw_outputs: List[str] = []
 
         model_device = next(self.model.parameters()).device
+        tokenizer = self.processor.tokenizer
+        pad_token_id = getattr(tokenizer, "pad_token_id", None)
+        if pad_token_id is None:
+            pad_token_id = getattr(tokenizer, "eos_token_id", None)
 
         for sample in dataset:
             image = Image.open(sample["image_path"]).convert("RGB")
@@ -192,13 +198,16 @@ class SFTEvaluator:
 
             inputs = {k: v.to(model_device) for k, v in inputs.items()}
 
+            generation_kwargs = {
+                "max_new_tokens": 32,
+                "do_sample": False,
+                "use_cache": True,
+            }
+            if pad_token_id is not None:
+                generation_kwargs["pad_token_id"] = pad_token_id
+
             with torch.no_grad():
-                outputs = self.model.generate(
-                    **inputs,
-                    max_new_tokens=32,
-                    do_sample=False,
-                    use_cache=True,
-                )
+                outputs = self.model.generate(**inputs, **generation_kwargs)
 
             gen_text = self.processor.tokenizer.decode(
                 outputs[0][inputs["input_ids"].shape[1]:],
@@ -227,8 +236,9 @@ class SFTEvaluator:
         for k, v in metrics.items():
             logger.info(f"{k}: {v}")
 
-        save_scatter_plot(y_true, preds, "output/eval/sft_scatter.png")
-        save_error_histogram(y_true, preds, "output/eval/sft_error_hist.png")
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        save_scatter_plot(y_true, preds, self.output_dir / "scatter.png")
+        save_error_histogram(y_true, preds, self.output_dir / "error_hist.png")
 
         image_paths = list(test_ds["image_path"])
         save_predictions_csv(
@@ -236,7 +246,7 @@ class SFTEvaluator:
             y_true=y_true,
             y_pred=preds,
             raw_outputs=outputs,
-            out_path="output/eval/sft_predictions.csv",
+            out_path=self.output_dir / "predictions.csv",
         )
 
         return {

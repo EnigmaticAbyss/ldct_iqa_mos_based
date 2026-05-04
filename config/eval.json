@@ -1,8 +1,8 @@
 
 {
   "eval_mode": "sft",
-  "model_dir": "output/model/medgemma15_iqa_sft",
-  "base_model_name":  null,
+  "model_dir": "google/medgemma-1.5-4b-it",
+  "base_model_name": null,
   "is_peft_adapter": false,
 
   "data_dir": "datasets/processed",
@@ -12,5 +12,5 @@
   "user_text": "Predict MOS score.",
 
   "device": null,
-  "output_path": "output/eval/base_vlm_eval_results.json"
+  "output_path": "output/eval/base_vlm/base_vlm_eval_results.json"
 }
