@@ -9,3 +9,9 @@ python scripts/train_vlm_sft.py
 
 # Step 4: evaluate
 python scripts/infer_vlm_quality.py
+
+# Run multiple SFT trials, evaluate each, and compare
+python -m scripts.sweep_sft --config config/sft_sweep.json
+
+# Preview the generated per-run configs and commands without training
+python -m scripts.sweep_sft --config config/sft_sweep.json --dry-run
