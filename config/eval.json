@@ -1,9 +1,9 @@
 
 {
   "eval_mode": "sft",
-  "model_dir": "google/medgemma-1.5-4b-it",
-  "base_model_name": null,
-  "is_peft_adapter": false,
+  "model_dir": "output/model/medgemma15_iqa_sft_test",
+  "base_model_name": "google/medgemma-1.5-4b-it",
+  "is_peft_adapter": true,
 
   "data_dir": "datasets/processed",
   "use_jsonl": true,
@@ -11,6 +11,6 @@
   "system_prompt": "You are a medical image quality assessment assistant.",
   "user_text": "Predict MOS score.",
 
-  "device": null,
-  "output_path": "output/eval/base_vlm/base_vlm_eval_results.json"
+  "device":  "cuda:0",
+  "output_path": "output/eval/sft/sft_eval_results.json"
 }
