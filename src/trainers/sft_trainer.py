@@ -70,6 +70,7 @@ class SFTTrainConfig:
 
     remove_unused_columns: bool = False
     dataset_kwargs: Optional[dict] = None
+    assistant_only_loss: bool = True
 
     lora_enabled: bool = True
     lora_scope: str = "llm"
@@ -177,7 +178,11 @@ class LDCTSFTTrainer:
         if self.train_ds is None or self.val_ds is None:
             raise ValueError("Call load_data() before build_trainer().")
 
-        collator = FormatSFTCollator(self.processor, max_length=self.cfg.max_length)
+        collator = FormatSFTCollator(
+            self.processor,
+            max_length=self.cfg.max_length,
+            assistant_only_loss=self.cfg.assistant_only_loss,
+        )
 
         args = SFTConfig(
             output_dir=self.cfg.output_dir,
@@ -198,8 +203,9 @@ class LDCTSFTTrainer:
             eval_strategy="steps",  
             save_strategy="steps",
             save_total_limit=self.cfg.save_total_limit,
+            # Labels are already prompt-masked by FormatSFTCollator when
+            # assistant_only_loss=true in this repo's config.
             assistant_only_loss=False,
-            # assistant_only_loss=False,
            
             # IMPORTANT for custom multimodal collator
             remove_unused_columns=self.cfg.remove_unused_columns,

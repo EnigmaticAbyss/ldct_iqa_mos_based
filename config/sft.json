@@ -36,6 +36,7 @@
 
   "remove_unused_columns": false,
   "dataset_kwargs": { "skip_prepare_dataset": true },
+  "assistant_only_loss": true,
 
   "lora_enabled": true,
   "lora_scope": "both",
