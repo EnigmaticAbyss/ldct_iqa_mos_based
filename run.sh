@@ -57,4 +57,5 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 mkdir -p "$HF_HOME"
 cd /home/woody/iwi5/iwi5255h/ldct_iqa_mos_based
 
-python -m scripts.evaluate --config config/eval.json
+# python -m scripts.evaluate --config config/eval.json
+python -m scripts.sweep_sft --config config/sft_sweep.json

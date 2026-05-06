@@ -276,10 +276,42 @@ def run_command(argv: List[str], *, dry_run: bool) -> None:
     subprocess.run(argv, check=True)
 
 
+def valid_json_file(path: Path) -> bool:
+    if not path.exists():
+        return False
+    try:
+        load_json(path)
+    except Exception:
+        return False
+    return True
+
+
+def find_latest_checkpoint(output_dir: str | Path) -> Optional[Path]:
+    output_dir = Path(output_dir)
+    if not output_dir.exists():
+        return None
+
+    candidates = []
+    for path in output_dir.iterdir():
+        if not path.is_dir():
+            continue
+        match = re.fullmatch(r"checkpoint-(\d+)", path.name)
+        if match:
+            candidates.append((int(match.group(1)), path))
+
+    if not candidates:
+        return None
+    candidates.sort(key=lambda item: item[0])
+    return candidates[-1][1]
+
+
 def load_metrics(path: Path) -> Dict[str, Any]:
     if not path.exists():
         return {}
-    data = load_json(path)
+    try:
+        data = load_json(path)
+    except Exception:
+        return {}
     metrics = data.get("metrics", data)
     return metrics if isinstance(metrics, dict) else {}
 
@@ -457,7 +489,8 @@ def run_sweep(args: argparse.Namespace) -> Dict[str, Any]:
     output_root = Path(sweep_cfg.get("output_root", "output/sweeps/sft"))
     output_root.mkdir(parents=True, exist_ok=True)
 
-    skip_existing = bool(sweep_cfg.get("skip_existing", True)) and not args.force
+    resume = bool(getattr(args, "resume", False) or sweep_cfg.get("resume", False))
+    skip_existing = bool(resume or sweep_cfg.get("skip_existing", True)) and not args.force
     continue_on_error = bool(sweep_cfg.get("continue_on_error", False))
     dry_run = bool(args.dry_run)
     skip_train = bool(args.skip_train or sweep_cfg.get("skip_train", False) or args.only_compare)
@@ -506,9 +539,13 @@ def run_sweep(args: argparse.Namespace) -> Dict[str, Any]:
             train_done = Path(train_cfg["output_dir"]) / "training_results.json"
             if skip_train:
                 record["train_status"] = "skipped"
-            elif skip_existing and train_done.exists():
+            elif skip_existing and valid_json_file(train_done):
+                print(f"[sweep] skipping train for {run_name}; found {train_done}", flush=True)
                 record["train_status"] = "skipped_existing"
             else:
+                checkpoint = find_latest_checkpoint(train_cfg["output_dir"])
+                if checkpoint is not None:
+                    print(f"[sweep] resuming train for {run_name} from {checkpoint}", flush=True)
                 run_command(
                     [sys.executable, "-m", "scripts.train", "--config", str(train_config_path)],
                     dry_run=dry_run,
@@ -517,7 +554,8 @@ def run_sweep(args: argparse.Namespace) -> Dict[str, Any]:
 
             if skip_eval:
                 record["eval_status"] = "skipped"
-            elif skip_existing and eval_path.exists():
+            elif skip_existing and load_metrics(eval_path):
+                print(f"[sweep] skipping eval for {run_name}; found {eval_path}", flush=True)
                 record["eval_status"] = "skipped_existing"
             else:
                 run_command(
@@ -596,6 +634,11 @@ def main() -> None:
     ap.add_argument("--skip-train", action="store_true", help="Do not run training")
     ap.add_argument("--skip-eval", action="store_true", help="Do not run evaluation")
     ap.add_argument("--only-compare", action="store_true", help="Only rebuild comparison files from existing eval outputs")
+    ap.add_argument(
+        "--resume",
+        action="store_true",
+        help="Skip completed train/eval results and resume interrupted training checkpoints",
+    )
     ap.add_argument("--force", action="store_true", help="Rerun even when existing train/eval outputs are present")
     args = ap.parse_args()
 
