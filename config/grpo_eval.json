@@ -1,0 +1,19 @@
+{
+  "eval_mode": "grpo",
+  "model_dir": "output/model/medgemma15_iqa_grpo_test",
+  "base_model_name": "google/medgemma-1.5-4b-it",
+  "is_peft_adapter": true,
+
+  "data_dir": "datasets/processed",
+  "use_jsonl": true,
+  "dataset_format": "jsonl",
+  "test_dataset_dir": "datasets/processed/sft_test_dataset",
+  "test_jsonl_path": "datasets/processed/base_test.jsonl",
+
+  "system_prompt": "You are a medical image quality assessment assistant.",
+  "user_text": "Predict MOS score.",
+
+  "device": "cuda:0",
+  "output_dir": "output/eval/grpo",
+  "output_path": "output/eval/grpo/grpo_eval_results.json"
+}
