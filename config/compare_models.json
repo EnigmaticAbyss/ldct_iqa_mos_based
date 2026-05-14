@@ -8,6 +8,10 @@
     {
       "name": "sft_trl",
       "path": "output/eval/sft/sft_eval_results.json"
+    },
+    {
+      "name": "grpo_mos",
+      "path": "output/eval/grpo/grpo_eval_results.json"
     }
 
   ]
