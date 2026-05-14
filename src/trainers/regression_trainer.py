@@ -3,17 +3,18 @@ from __future__ import annotations
 
 import json
 import logging
+import inspect
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 import torch
 from datasets import Dataset
-from transformers import AutoModelForCausalLM, AutoProcessor, TrainingArguments, Trainer
+from transformers import AutoProcessor, TrainingArguments, Trainer, TrainerCallback, TrainerControl, TrainerState
 
 from src.data.loaders import DatasetLoader
 from src.data.collators import MOSRegressionCollator
-from src.models.mos_regression import VLMForMOSRegression, infer_hidden_size
+from src.models.mos_regression import AutoModelClass, VLMForMOSRegression, infer_hidden_size
 from src.models.lora_adapters import resolve_lora_targets, build_lora_config_from_settings
 from src.trainers.common import (
     setup_logging,
@@ -34,6 +35,14 @@ class RegressionTrainConfig:
     model_name: str
     data_dir: str = "data/processed"
     use_jsonl: bool = False
+    dataset_format: Optional[str] = None
+    train_dataset_dir: Optional[str] = None
+    val_dataset_dir: Optional[str] = None
+    train_json_path: Optional[str] = None
+    val_json_path: Optional[str] = None
+    train_jsonl_path: Optional[str] = None
+    val_jsonl_path: Optional[str] = None
+    prompt_text: str = "Predict MOS score."
     output_dir: str = "models/medgemma-mos-regression"
     logging_dir: str = "logs/regression"
     seed: int = 42
@@ -80,6 +89,23 @@ class RegressionTrainConfig:
     lora_dropout: float = 0.05
 
 
+class RegressionConfigSaveCallback(TrainerCallback):
+    def __init__(self, metadata: Dict[str, Any]):
+        self.metadata = dict(metadata)
+
+    def _save(self, path: Path) -> None:
+        path.mkdir(parents=True, exist_ok=True)
+        (path / "regression_config.json").write_text(
+            json.dumps(self.metadata, indent=2),
+            encoding="utf-8",
+        )
+
+    def on_save(self, args, state: TrainerState, control: TrainerControl, **kwargs):
+        if not state.is_world_process_zero:
+            return
+        self._save(Path(args.output_dir) / f"checkpoint-{state.global_step}")
+
+
 class LDCTRegressionTrainer:
     def __init__(self, config_dict: Dict[str, Any]):
         self.cfg = RegressionTrainConfig(**config_dict)
@@ -98,7 +124,15 @@ class LDCTRegressionTrainer:
     # ---------------- Data ---------------- #
 
     def load_data(self):
-        loader = DatasetLoader(data_dir=self.cfg.data_dir, use_jsonl=self.cfg.use_jsonl)
+        loader = DatasetLoader(
+            data_dir=self.cfg.data_dir,
+            use_jsonl=self.cfg.use_jsonl,
+            dataset_format=self.cfg.dataset_format,
+            train_dataset_dir=self.cfg.train_dataset_dir,
+            val_dataset_dir=self.cfg.val_dataset_dir,
+            train_json_path=self.cfg.train_json_path or self.cfg.train_jsonl_path,
+            val_json_path=self.cfg.val_json_path or self.cfg.val_jsonl_path,
+        )
         train, val = loader.load_train_val()
 
         # Required columns for regression base dataset
@@ -113,7 +147,7 @@ class LDCTRegressionTrainer:
     def load_model(self):
         bnb = build_bnb_config(self.cfg.use_4bit, self.cfg.use_8bit, compute_dtype=self.cfg.bnb_compute_dtype)
 
-        backbone = AutoModelForCausalLM.from_pretrained(
+        backbone = AutoModelClass.from_pretrained(
             self.cfg.model_name,
             device_map="auto",
             quantization_config=bnb,
@@ -129,12 +163,13 @@ class LDCTRegressionTrainer:
             huber_delta=self.cfg.huber_delta,
             mos_min=self.cfg.mos_min,
             mos_max=self.cfg.mos_max,
+            base_model_name=self.cfg.model_name,
         )
 
         # Apply LoRA if enabled and coverage != full_finetune
         if self.cfg.lora_enabled and self.cfg.lora_coverage != "full_finetune":
             plan = resolve_lora_targets(
-                model,
+                model.backbone,
                 scope=self.cfg.lora_scope,
                 coverage=self.cfg.lora_coverage,
                 include_patterns=self.cfg.lora_include_patterns,
@@ -144,11 +179,12 @@ class LDCTRegressionTrainer:
                 logger.warning("LoRA enabled but no targets found. Training will proceed without LoRA.")
             else:
                 lora_cfg = build_lora_config_from_settings(
-                    task_type="CAUSAL_LM",
+                    task_type="FEATURE_EXTRACTION",
                     r=self.cfg.lora_r,
                     alpha=self.cfg.lora_alpha,
                     dropout=self.cfg.lora_dropout,
                     target_modules=plan.target_modules,
+                    modules_to_save=["head"],
                 )
                 model = get_peft_model(model, lora_cfg)
                 logger.info("✅ LoRA adapters attached to model.")
@@ -167,29 +203,13 @@ class LDCTRegressionTrainer:
         if self.train_ds is None or self.val_ds is None:
             raise ValueError("Call load_data() before build_trainer().")
 
-        collator = MOSRegressionCollator(self.processor, max_length=self.cfg.max_length)
-
-        args = TrainingArguments(
-            output_dir=self.cfg.output_dir,
-            logging_dir=self.cfg.logging_dir,
-            num_train_epochs=self.cfg.num_train_epochs,
-            per_device_train_batch_size=self.cfg.per_device_train_batch_size,
-            per_device_eval_batch_size=self.cfg.per_device_eval_batch_size,
-            gradient_accumulation_steps=self.cfg.gradient_accumulation_steps,
-            learning_rate=self.cfg.learning_rate,
-            weight_decay=self.cfg.weight_decay,
-            warmup_ratio=self.cfg.warmup_ratio,
-            logging_steps=self.cfg.logging_steps,
-            save_steps=self.cfg.save_steps,
-            eval_steps=self.cfg.eval_steps,
-            evaluation_strategy="steps",
-            save_strategy="steps",
-            save_total_limit=self.cfg.save_total_limit,
-            fp16=self.cfg.fp16,
-            bf16=self.cfg.bf16,
-            report_to=["tensorboard"],
-            remove_unused_columns=False,  # IMPORTANT for multimodal batches
+        collator = MOSRegressionCollator(
+            self.processor,
+            max_length=self.cfg.max_length,
+            prompt_text=self.cfg.prompt_text,
         )
+
+        args = self._training_args()
 
         self.trainer = Trainer(
             model=self.model,
@@ -199,8 +219,55 @@ class LDCTRegressionTrainer:
             data_collator=collator,
         )
         self.trainer.add_callback(ProcessorSaveCallback(self.processor))
+        self.trainer.add_callback(RegressionConfigSaveCallback(self._regression_metadata()))
 
         logger.info("HF Trainer built.")
+
+    def _training_args(self) -> TrainingArguments:
+        candidates = {
+            "output_dir": self.cfg.output_dir,
+            "logging_dir": self.cfg.logging_dir,
+            "num_train_epochs": self.cfg.num_train_epochs,
+            "per_device_train_batch_size": self.cfg.per_device_train_batch_size,
+            "per_device_eval_batch_size": self.cfg.per_device_eval_batch_size,
+            "gradient_accumulation_steps": self.cfg.gradient_accumulation_steps,
+            "learning_rate": self.cfg.learning_rate,
+            "weight_decay": self.cfg.weight_decay,
+            "warmup_ratio": self.cfg.warmup_ratio,
+            "logging_steps": self.cfg.logging_steps,
+            "save_steps": self.cfg.save_steps,
+            "eval_steps": self.cfg.eval_steps,
+            "eval_strategy": "steps",
+            "save_strategy": "steps",
+            "save_total_limit": self.cfg.save_total_limit,
+            "fp16": self.cfg.fp16,
+            "bf16": self.cfg.bf16,
+            "report_to": ["tensorboard"],
+            "remove_unused_columns": False,
+        }
+
+        allowed = set(inspect.signature(TrainingArguments.__init__).parameters) - {"self"}
+        if "eval_strategy" not in allowed and "evaluation_strategy" in allowed:
+            candidates["evaluation_strategy"] = candidates.pop("eval_strategy")
+
+        return TrainingArguments(
+            **{key: value for key, value in candidates.items() if key in allowed}
+        )
+
+    def _regression_metadata(self) -> Dict[str, Any]:
+        return {
+            "base_model_name": self.cfg.model_name,
+            "loss_type": self.cfg.loss_type,
+            "huber_delta": self.cfg.huber_delta,
+            "mos_min": self.cfg.mos_min,
+            "mos_max": self.cfg.mos_max,
+            "prompt_text": self.cfg.prompt_text,
+        }
+
+    def _save_regression_metadata(self) -> None:
+        path = Path(self.cfg.output_dir) / "regression_config.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(self._regression_metadata(), indent=2), encoding="utf-8")
 
     # ---------------- Run ---------------- #
 
@@ -225,6 +292,9 @@ class LDCTRegressionTrainer:
 
         # Save final model + processor
         self.trainer.save_model(self.cfg.output_dir)
+        if not hasattr(self.model, "peft_config") and hasattr(self.model, "save_pretrained"):
+            self.model.save_pretrained(self.cfg.output_dir)
+        self._save_regression_metadata()
         try:
             self.processor.save_pretrained(self.cfg.output_dir)
         except Exception as e:

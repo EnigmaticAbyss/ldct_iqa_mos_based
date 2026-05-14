@@ -1,15 +1,25 @@
 # src/models/mos_regression.py
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+try:
+    from transformers import AutoModelForImageTextToText as AutoModelClass
+except ImportError:
+    from transformers import AutoModelForCausalLM as AutoModelClass
+
 logger = logging.getLogger("mos_regression")
+
+REGRESSION_CONFIG_NAME = "regression_config.json"
+REGRESSION_WEIGHTS_NAME = "pytorch_model.bin"
 
 
 def infer_hidden_size(backbone) -> int:
@@ -73,6 +83,7 @@ class VLMForMOSRegression(nn.Module):
         huber_delta: float = 0.5,
         mos_min: float = 0.0,
         mos_max: float = 4.0,
+        base_model_name: Optional[str] = None,
     ):
         super().__init__()
         self.backbone = backbone
@@ -82,6 +93,11 @@ class VLMForMOSRegression(nn.Module):
         self.huber_delta = float(huber_delta)
         self.mos_min = float(mos_min)
         self.mos_max = float(mos_max)
+        self.base_model_name = base_model_name or getattr(
+            getattr(backbone, "config", None),
+            "_name_or_path",
+            None,
+        )
 
         # We need hidden states from the LM
         if hasattr(self.backbone, "config"):
@@ -106,6 +122,7 @@ class VLMForMOSRegression(nn.Module):
 
     def forward(self, **batch):
         labels = batch.pop("labels", None)
+        batch.setdefault("output_hidden_states", True)
 
         outputs = self.backbone(**batch)
 
@@ -131,3 +148,101 @@ class VLMForMOSRegression(nn.Module):
             out["loss"] = loss
 
         return out
+
+    def regression_config(self) -> dict:
+        return {
+            "base_model_name": self.base_model_name,
+            "loss_type": self.loss_type,
+            "huber_delta": self.huber_delta,
+            "mos_min": self.mos_min,
+            "mos_max": self.mos_max,
+        }
+
+    def save_pretrained(self, save_directory: str | Path, **kwargs) -> None:
+        save_dir = Path(save_directory)
+        save_dir.mkdir(parents=True, exist_ok=True)
+
+        (save_dir / REGRESSION_CONFIG_NAME).write_text(
+            json.dumps(self.regression_config(), indent=2),
+            encoding="utf-8",
+        )
+        torch.save(self.state_dict(), save_dir / REGRESSION_WEIGHTS_NAME)
+
+    @staticmethod
+    def _load_regression_config(model_dir: Path) -> dict:
+        config_path = model_dir / REGRESSION_CONFIG_NAME
+        if not config_path.exists():
+            return {}
+        return json.loads(config_path.read_text(encoding="utf-8"))
+
+    @staticmethod
+    def _load_state_dict(model_dir: Path) -> Optional[dict]:
+        weights_path = model_dir / REGRESSION_WEIGHTS_NAME
+        if weights_path.exists():
+            return torch.load(weights_path, map_location="cpu")
+
+        safetensors_path = model_dir / "model.safetensors"
+        if safetensors_path.exists():
+            from safetensors.torch import load_file
+
+            return load_file(str(safetensors_path), device="cpu")
+
+        return None
+
+    @classmethod
+    def from_pretrained(
+        cls,
+        model_dir: str | Path,
+        *,
+        base_model_name: Optional[str] = None,
+        is_peft_adapter: Optional[bool] = None,
+        device_map=None,
+        quantization_config=None,
+        trust_remote_code: bool = True,
+        **model_kwargs,
+    ):
+        model_dir = Path(model_dir)
+        cfg = cls._load_regression_config(model_dir)
+        adapter_config = model_dir / "adapter_config.json"
+        load_as_adapter = adapter_config.exists() if is_peft_adapter is None else is_peft_adapter
+
+        backbone_name = base_model_name or cfg.get("base_model_name")
+        if not backbone_name:
+            if load_as_adapter:
+                raise ValueError(
+                    f"{model_dir} looks like a PEFT adapter but no base model is known. "
+                    "Pass base_model_name or make sure regression_config.json was saved."
+                )
+            backbone_name = str(model_dir)
+
+        backbone = AutoModelClass.from_pretrained(
+            backbone_name,
+            device_map=device_map,
+            quantization_config=quantization_config,
+            trust_remote_code=trust_remote_code,
+            **model_kwargs,
+        )
+        model = cls(
+            backbone=backbone,
+            hidden_size=infer_hidden_size(backbone),
+            loss_type=cfg.get("loss_type", "mse"),
+            huber_delta=cfg.get("huber_delta", 0.5),
+            mos_min=cfg.get("mos_min", 0.0),
+            mos_max=cfg.get("mos_max", 4.0),
+            base_model_name=backbone_name,
+        )
+
+        if load_as_adapter:
+            from peft import PeftModel
+
+            return PeftModel.from_pretrained(model, str(model_dir))
+
+        state_dict = cls._load_state_dict(model_dir)
+        if state_dict is not None:
+            missing, unexpected = model.load_state_dict(state_dict, strict=False)
+            if missing:
+                logger.warning(f"Missing regression weights while loading {model_dir}: {missing}")
+            if unexpected:
+                logger.warning(f"Unexpected regression weights while loading {model_dir}: {unexpected}")
+
+        return model

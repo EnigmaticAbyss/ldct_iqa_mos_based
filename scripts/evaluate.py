@@ -28,9 +28,19 @@ def main():
 
         evaluator = RegressionEvaluator(
             model_dir=cfg["model_dir"],
+            base_model_name=cfg.get("base_model_name", None),
+            is_peft_adapter=cfg.get("is_peft_adapter", None),
             data_dir=cfg.get("data_dir", "datasets/processed"),
             use_jsonl=cfg.get("use_jsonl", False),
+            dataset_format=cfg.get("dataset_format", None),
+            test_dataset_dir=cfg.get("test_dataset_dir", None),
+            test_json_path=cfg.get("test_json_path", cfg.get("test_jsonl_path", None)),
+            prompt_text=cfg.get("prompt_text", "Predict MOS score."),
             device=cfg.get("device", None),
+            output_dir=output_dir,
+            use_4bit=cfg.get("use_4bit", True),
+            use_8bit=cfg.get("use_8bit", False),
+            bnb_compute_dtype=cfg.get("bnb_compute_dtype", "bf16"),
         )
         results = evaluator.run()
 

@@ -4,6 +4,10 @@
 
   "data_dir": "datasets/processed",
   "use_jsonl": true,
+  "dataset_format": "json",
+  "train_json_path": "datasets/processed/base_train.jsonl",
+  "val_json_path": "datasets/processed/base_val.jsonl",
+  "prompt_text": "Predict MOS score.",
 
   "output_dir": "output/model/medgemma15_iqa_regression_test",
   "logging_dir": "logs/regression",

@@ -1,10 +1,20 @@
 {
   "eval_mode": "regression",
   "model_dir": "output/model/medgemma15_iqa_regression_test",
+  "base_model_name": "google/medgemma-1.5-4b-it",
+  "is_peft_adapter": true,
 
   "data_dir": "datasets/processed",
   "use_jsonl": true,
+  "dataset_format": "json",
+  "test_json_path": "datasets/processed/base_test.jsonl",
+  "prompt_text": "Predict MOS score.",
+
+  "use_4bit": true,
+  "use_8bit": false,
+  "bnb_compute_dtype": "bf16",
 
   "device": "cuda:0",
+  "output_dir": "output/eval/regression",
   "output_path": "output/eval/regression/regression_eval_results.json"
 }

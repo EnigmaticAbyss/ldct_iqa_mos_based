@@ -139,7 +139,7 @@ Supported eval modes:
 - `eval_mode: sft`
 - `eval_mode: grpo`
 
-For SFT or GRPO evaluation, set `is_peft_adapter` and `base_model_name` when loading a PEFT/LoRA adapter.
+For regression, SFT, or GRPO evaluation, set `is_peft_adapter` and `base_model_name` when loading a PEFT/LoRA adapter.
 SFT and GRPO have separate evaluator classes, both backed by the shared generative MOS evaluator.
 
 Evaluation data fields:
@@ -151,7 +151,7 @@ Evaluation data fields:
 
 ### Output
 
-Evaluation writes a JSON metrics file. The SFT and GRPO generative evaluators also write `predictions.csv`, `scatter.png`, and `error_hist.png` under the configured `output_dir`. Example default paths:
+Evaluation writes a JSON metrics file. The evaluators also write `predictions.csv`, `scatter.png`, and `error_hist.png` under the configured `output_dir`. Example default paths:
 
 - `output/eval/sft/sft_eval_results.json`
 - `output/eval/grpo/grpo_eval_results.json`

@@ -123,6 +123,7 @@ def build_lora_config_from_settings(
     alpha: int,
     dropout: float,
     target_modules: List[str],
+    modules_to_save: Optional[List[str]] = None,
 ) -> LoraConfig:
     """
     Create PEFT LoraConfig.
@@ -135,6 +136,7 @@ def build_lora_config_from_settings(
         lora_alpha=int(alpha),
         lora_dropout=float(dropout),
         target_modules=list(target_modules),
+        modules_to_save=list(modules_to_save) if modules_to_save else None,
         bias="none",
         task_type=task_type,
     )
