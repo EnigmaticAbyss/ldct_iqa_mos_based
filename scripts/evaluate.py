@@ -20,8 +20,8 @@ def main():
     output_dir = Path(cfg.get("output_dir", output_path.parent))
 
     mode = str(cfg.get("eval_mode", "")).strip().lower()
-    if mode not in ("regression", "sft"):
-        raise ValueError("config must include eval_mode = 'regression' or 'sft'")
+    if mode not in ("regression", "sft", "grpo"):
+        raise ValueError("config must include eval_mode = 'regression', 'sft', or 'grpo'")
 
     if mode == "regression":
         from src.evaluation.regression_evaluator import RegressionEvaluator
@@ -43,6 +43,9 @@ def main():
             is_peft_adapter=cfg.get("is_peft_adapter", False),
             data_dir=cfg.get("data_dir", "datasets/processed"),
             use_jsonl=cfg.get("use_jsonl", False),
+            dataset_format=cfg.get("dataset_format", None),
+            test_dataset_dir=cfg.get("test_dataset_dir", None),
+            test_json_path=cfg.get("test_json_path", cfg.get("test_jsonl_path", None)),
             system_prompt=cfg.get(
                 "system_prompt",
                 "You are a medical image quality assessment assistant.",

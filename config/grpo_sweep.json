@@ -1,0 +1,63 @@
+{
+  "base_train_config": "config/grpo.json",
+  "base_eval_config": "config/grpo_eval.json",
+  "output_root": "output/sweeps/grpo_param_study",
+  "skip_existing": true,
+  "continue_on_error": false,
+  "primary_metric": "srocc",
+  "primary_mode": "max",
+  "force_separate_output_dirs": true,
+  "runs": [
+    {
+      "name": "baseline_g2_beta0_lr1e-5_temp07",
+      "train": {
+        "num_generations": 2,
+        "num_generations_eval": 2,
+        "beta": 0.0,
+        "learning_rate": 0.00001,
+        "temperature": 0.7
+      }
+    },
+    {
+      "name": "kl_beta002_g2_lr1e-5_temp07",
+      "train": {
+        "num_generations": 2,
+        "num_generations_eval": 2,
+        "beta": 0.02,
+        "learning_rate": 0.00001,
+        "temperature": 0.7
+      }
+    },
+    {
+      "name": "lower_lr_g2_beta0_lr5e-6_temp07",
+      "train": {
+        "num_generations": 2,
+        "num_generations_eval": 2,
+        "beta": 0.0,
+        "learning_rate": 0.000005,
+        "temperature": 0.7
+      }
+    },
+    {
+      "name": "higher_temp_g2_beta0_lr1e-5_temp10",
+      "train": {
+        "num_generations": 2,
+        "num_generations_eval": 2,
+        "beta": 0.0,
+        "learning_rate": 0.00001,
+        "temperature": 1.0
+      }
+    },
+    {
+      "name": "longer_completion_g2_beta0_lr1e-5_len48",
+      "train": {
+        "num_generations": 2,
+        "num_generations_eval": 2,
+        "beta": 0.0,
+        "learning_rate": 0.00001,
+        "temperature": 0.7,
+        "max_completion_length": 48
+      }
+    }
+  ]
+}

@@ -9,10 +9,8 @@
   "data_dir": "datasets/processed",
   "train_dataset_dir": "datasets/processed/sft_train_dataset",
   "val_dataset_dir": "datasets/processed/sft_val_dataset",
-  "test_dataset_dir": "datasets/processed/sft_test_dataset",
   "train_json_path": "datasets/processed/base_train.jsonl",
   "val_json_path": "datasets/processed/base_val.jsonl",
-  "test_json_path": "datasets/processed/base_test.jsonl",
 
   "system_prompt": "You are a medical image quality assessment assistant.",
   "user_text": "Predict the MOS score as JSON like {\"rating\": 2.5}.",

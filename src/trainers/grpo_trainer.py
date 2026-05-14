@@ -47,13 +47,10 @@ class GRPOTrainConfig:
     use_jsonl: bool = False
     train_dataset_dir: Optional[str] = None
     val_dataset_dir: Optional[str] = None
-    test_dataset_dir: Optional[str] = None
     train_json_path: Optional[str] = None
     val_json_path: Optional[str] = None
-    test_json_path: Optional[str] = None
     train_jsonl_path: Optional[str] = None
     val_jsonl_path: Optional[str] = None
-    test_jsonl_path: Optional[str] = None
 
     system_prompt: str = "You are a medical image quality assessment assistant."
     user_text: str = "Predict MOS score."
@@ -176,10 +173,8 @@ class LDCTGRPOTrainer:
             dataset_format=self._dataset_format(),
             train_dataset_dir=self.cfg.train_dataset_dir,
             val_dataset_dir=self.cfg.val_dataset_dir,
-            test_dataset_dir=self.cfg.test_dataset_dir,
             train_json_path=self._first_path(self.cfg.train_json_path, self.cfg.train_jsonl_path),
             val_json_path=self._first_path(self.cfg.val_json_path, self.cfg.val_jsonl_path),
-            test_json_path=self._first_path(self.cfg.test_json_path, self.cfg.test_jsonl_path),
         )
         train, val = loader.load_train_val()
 

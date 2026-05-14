@@ -33,9 +33,13 @@ class SFTTrainConfig:
 
     # NEW: prebuilt Arrow datasets
     load_prebuilt_sft_dataset: bool = False
+    dataset_format: Optional[str] = None
     train_dataset_dir: Optional[str] = None
     val_dataset_dir: Optional[str] = None
-    test_dataset_dir: Optional[str] = None
+    train_json_path: Optional[str] = None
+    val_json_path: Optional[str] = None
+    train_jsonl_path: Optional[str] = None
+    val_jsonl_path: Optional[str] = None
 
     # Old base loading (only used if load_prebuilt_sft_dataset=False)
     data_dir: str = "data/processed"
@@ -115,7 +119,15 @@ class LDCTSFTTrainer:
             return
 
         # else: old behavior (build messages each run)
-        loader = DatasetLoader(data_dir=self.cfg.data_dir, use_jsonl=self.cfg.use_jsonl)
+        loader = DatasetLoader(
+            data_dir=self.cfg.data_dir,
+            use_jsonl=self.cfg.use_jsonl,
+            dataset_format=self.cfg.dataset_format,
+            train_dataset_dir=self.cfg.train_dataset_dir,
+            val_dataset_dir=self.cfg.val_dataset_dir,
+            train_json_path=self.cfg.train_json_path or self.cfg.train_jsonl_path,
+            val_json_path=self.cfg.val_json_path or self.cfg.val_jsonl_path,
+        )
         train, val = loader.load_train_val()
 
         DatasetLoader.require_columns(train, ["image_path", "mos_score"], name="train")
