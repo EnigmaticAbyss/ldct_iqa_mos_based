@@ -44,6 +44,10 @@ class SFTEvaluator:
         base_model_name: Optional[str] = None,
         is_peft_adapter: bool = False,
         output_dir: str | Path = "output/eval/sft",
+        dataset_format: Optional[str] = None,
+        test_dataset_dir: Optional[str] = None,
+        test_json_path: Optional[str] = None,
+        test_jsonl_path: Optional[str] = None,
     ):
         self.model_dir = str(model_dir)
         self.base_model_name = base_model_name
@@ -52,6 +56,9 @@ class SFTEvaluator:
 
         self.data_dir = data_dir
         self.use_jsonl = use_jsonl
+        self.dataset_format = dataset_format
+        self.test_dataset_dir = test_dataset_dir
+        self.test_json_path = test_json_path or test_jsonl_path
 
         self.system_prompt = system_prompt
         self.user_text = user_text
@@ -143,7 +150,13 @@ class SFTEvaluator:
         self.model.eval()
         logger.info("Model + processor loaded.")
     def load_dataset(self) -> Dataset:
-        loader = DatasetLoader(data_dir=self.data_dir, use_jsonl=self.use_jsonl)
+        loader = DatasetLoader(
+            data_dir=self.data_dir,
+            use_jsonl=self.use_jsonl,
+            dataset_format=self.dataset_format,
+            test_dataset_dir=self.test_dataset_dir,
+            test_json_path=self.test_json_path,
+        )
 
         test_ds = loader.load_test()
 
