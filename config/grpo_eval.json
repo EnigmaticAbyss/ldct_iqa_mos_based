@@ -5,13 +5,13 @@
   "is_peft_adapter": true,
 
   "data_dir": "datasets/processed",
-  "use_jsonl": true,
-  "dataset_format": "jsonl",
+  "use_jsonl": false,
+  "dataset_format": "arrow",
   "test_dataset_dir": "datasets/processed/sft_test_dataset",
-  "test_jsonl_path": "datasets/processed/base_test.jsonl",
+  "test_json_path": "datasets/processed/base_test.jsonl",
 
   "system_prompt": "You are a medical image quality assessment assistant.",
-  "user_text": "Predict MOS score.",
+  "user_text": "Predict the MOS score as JSON like {\"rating\": 2.5}.",
 
   "device": "cuda:0",
   "output_dir": "output/eval/grpo",
