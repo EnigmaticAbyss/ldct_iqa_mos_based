@@ -1,0 +1,10 @@
+{
+  "eval_mode": "regression",
+  "model_dir": "output/model/medgemma15_iqa_regression_test",
+
+  "data_dir": "datasets/processed",
+  "use_jsonl": true,
+
+  "device": "cuda:0",
+  "output_path": "output/eval/regression/regression_eval_results.json"
+}

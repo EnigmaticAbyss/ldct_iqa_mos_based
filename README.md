@@ -14,10 +14,9 @@ This repository contains tools and scripts for low-dose CT (LDCT) image quality 
 ## Key Capabilities
 
 - Convert TIFF CT scans to normalized PNG and JSONL training data.
-- Train either:
-  - MOS regression models (`sft_mode: regression`)
-  - TRL fine-tuned (SFT) VLM models (`sft_mode: trl_sft`)
-- Run MOS-reward GRPO refinement from the SFT LoRA adapter (`train_mode: trl_grpo`).
+- Train MOS regression models (`train_mode` or `sft_mode`: `regression`).
+- Train TRL fine-tuned (SFT) VLM models (`sft_mode: trl_sft`).
+- Run MOS-reward GRPO refinement from an SFT LoRA adapter or directly from the base VLM (`train_mode: trl_grpo`).
 - Evaluate regression, SFT, and GRPO models against test data.
 - Compare multiple evaluated models using standard IQA metrics.
 - Build TRL-compatible Arrow datasets from base JSONL sources.
@@ -79,13 +78,19 @@ Repeat for validation and test JSONL files when needed.
 
 Use `scripts/train.py` with a JSON config file. The config selects regression, TRL SFT, or TRL GRPO mode.
 
+The checked-in training configs are:
+
+- `config/regression.json`: MOS regression training.
+- `config/sft.json`: TRL SFT training.
+- `config/grpo.json`: TRL GRPO training.
+
 ### Regression training
 
 ```bash
-python scripts/train.py --config config/sft.json
+python scripts/train.py --config config/regression.json
 ```
 
-Set `sft_mode` to `regression` in the config to train with `src.trainers.regression_trainer.LDCTRegressionTrainer`.
+Set `train_mode` or `sft_mode` to `regression`.
 
 ### TRL SFT training
 
@@ -102,17 +107,18 @@ python scripts/train.py --config config/grpo.json
 ```
 
 Set `train_mode` to `trl_grpo`. The default GRPO config starts from the existing SFT LoRA adapter at `output/model/medgemma15_iqa_sft_test`, uses the available SFT Arrow datasets, and rewards only MOS prediction closeness.
+Set `adapter_model_dir` to `null` to run GRPO directly from the base model instead.
 
 ### Important config fields
 
 - `model_name`: base Vision-Language model checkpoint (for example `google/medgemma-1.5-4b-it`).
 - `output_dir`: where to save checkpoints and adapter layers.
 - `logging_dir`: TensorBoard/logging output location.
+- `data_dir`: fallback processed-data root used when explicit dataset paths are not set.
 - `load_prebuilt_sft_dataset`: whether to load Arrow datasets instead of JSONL.
 - `dataset_format`: `arrow` for `save_to_disk` datasets or `json` / `jsonl` for base JSON files.
 - `train_dataset_dir` / `val_dataset_dir`: training and validation Arrow dataset paths.
 - `train_json_path` / `val_json_path`: training and validation JSON or JSONL dataset paths.
-- `test_dataset_dir` / `test_json_path`: evaluation-only test dataset paths.
 - `adapter_model_dir`: optional SFT PEFT adapter to continue from before GRPO.
 - `use_4bit` / `use_8bit`: quantization settings.
 - `lora_enabled`, `lora_scope`, `lora_coverage`: LoRA adapter configuration.
@@ -125,6 +131,8 @@ Evaluate a regression, SFT, or GRPO model.
 python scripts/evaluate.py --config config/eval.json
 ```
 
+Use `config/regression_eval.json` for regression, `config/eval.json` for the default SFT evaluator config, and `config/grpo_eval.json` for the GRPO evaluator config.
+
 Supported eval modes:
 
 - `eval_mode: regression`
@@ -134,12 +142,20 @@ Supported eval modes:
 For SFT or GRPO evaluation, set `is_peft_adapter` and `base_model_name` when loading a PEFT/LoRA adapter.
 SFT and GRPO have separate evaluator classes, both backed by the shared generative MOS evaluator.
 
+Evaluation data fields:
+
+- `data_dir`: fallback processed-data root. For JSON evaluation it defaults to `base_test.jsonl`; for Arrow evaluation it defaults to `test_dataset`.
+- `dataset_format`: `arrow` for `save_to_disk` datasets or `json` / `jsonl` for base JSON files.
+- `test_dataset_dir`: explicit Arrow test dataset path, such as `datasets/processed/sft_test_dataset`.
+- `test_json_path`: explicit JSON/JSONL test dataset path, such as `datasets/processed/base_test.jsonl`.
+
 ### Output
 
-Evaluation writes a JSON file of metrics and predictions. Example default path:
+Evaluation writes a JSON metrics file. The SFT and GRPO generative evaluators also write `predictions.csv`, `scatter.png`, and `error_hist.png` under the configured `output_dir`. Example default paths:
 
 - `output/eval/sft/sft_eval_results.json`
 - `output/eval/grpo/grpo_eval_results.json`
+- `output/eval/regression/regression_eval_results.json`
 
 ## Model Comparison
 
@@ -168,7 +184,7 @@ For GRPO parameter comparison:
 python -m scripts.sweep_grpo --config config/grpo_sweep.json
 ```
 
-Use `--dry-run` to preview commands and run configs without launching training.
+Both sweep entrypoints use the shared implementation in `scripts/sweep_common.py`. Use `--dry-run` to preview commands and run configs without launching training. The GRPO sweep includes runs that start from the SFT adapter and runs that start directly from the base model.
 
 ## Outputs and Logs
 

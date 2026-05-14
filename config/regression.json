@@ -1,0 +1,48 @@
+{
+  "train_mode": "regression",
+  "model_name": "google/medgemma-1.5-4b-it",
+
+  "data_dir": "datasets/processed",
+  "use_jsonl": true,
+
+  "output_dir": "output/model/medgemma15_iqa_regression_test",
+  "logging_dir": "logs/regression",
+  "seed": 42,
+
+  "num_train_epochs": 3.0,
+  "per_device_train_batch_size": 1,
+  "per_device_eval_batch_size": 1,
+  "gradient_accumulation_steps": 4,
+
+  "learning_rate": 0.0002,
+  "weight_decay": 0.01,
+  "warmup_ratio": 0.1,
+
+  "logging_steps": 10,
+  "save_steps": 100,
+  "eval_steps": 100,
+  "save_total_limit": 3,
+
+  "max_length": 256,
+
+  "fp16": false,
+  "bf16": true,
+
+  "use_4bit": true,
+  "use_8bit": false,
+  "bnb_compute_dtype": "bf16",
+
+  "loss_type": "mse",
+  "huber_delta": 0.5,
+  "mos_min": 0.0,
+  "mos_max": 4.0,
+
+  "lora_enabled": true,
+  "lora_scope": "llm",
+  "lora_coverage": "linear_only",
+  "lora_include_patterns": null,
+  "lora_exclude_patterns": null,
+  "lora_r": 16,
+  "lora_alpha": 32,
+  "lora_dropout": 0.05
+}

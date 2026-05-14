@@ -59,3 +59,5 @@ cd /home/woody/iwi5/iwi5255h/ldct_iqa_mos_based
 
 # python -m scripts.evaluate --config config/eval.json
 python -m scripts.sweep_sft --config config/sft_sweep.json
+# Preview configs/commands without training
+python -m scripts.sweep_grpo --config config/grpo_sweep.json --dry-run
