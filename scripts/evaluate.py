@@ -34,10 +34,32 @@ def main():
         )
         results = evaluator.run()
 
-    else:
+    elif mode == "sft":
         from src.evaluation.sft_evaluator import SFTEvaluator
 
         evaluator = SFTEvaluator(
+            model_dir=cfg["model_dir"],
+            base_model_name=cfg.get("base_model_name", None),
+            is_peft_adapter=cfg.get("is_peft_adapter", False),
+            data_dir=cfg.get("data_dir", "datasets/processed"),
+            use_jsonl=cfg.get("use_jsonl", False),
+            dataset_format=cfg.get("dataset_format", None),
+            test_dataset_dir=cfg.get("test_dataset_dir", None),
+            test_json_path=cfg.get("test_json_path", cfg.get("test_jsonl_path", None)),
+            system_prompt=cfg.get(
+                "system_prompt",
+                "You are a medical image quality assessment assistant.",
+            ),
+            user_text=cfg.get("user_text", "Predict MOS score."),
+            device=cfg.get("device", None),
+            output_dir=output_dir,
+        )
+        results = evaluator.run()
+
+    else:
+        from src.evaluation.grpo_evaluator import GRPOEvaluator
+
+        evaluator = GRPOEvaluator(
             model_dir=cfg["model_dir"],
             base_model_name=cfg.get("base_model_name", None),
             is_peft_adapter=cfg.get("is_peft_adapter", False),

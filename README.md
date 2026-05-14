@@ -98,12 +98,6 @@ Set `sft_mode` to `trl_sft` in the config to train with `src.trainers.sft_traine
 ### TRL GRPO training
 
 ```bash
-python scripts/grpo_train.py --config config/grpo.json
-```
-
-You can also run it through the shared entrypoint:
-
-```bash
 python scripts/train.py --config config/grpo.json
 ```
 
@@ -116,8 +110,9 @@ Set `train_mode` to `trl_grpo`. The default GRPO config starts from the existing
 - `logging_dir`: TensorBoard/logging output location.
 - `load_prebuilt_sft_dataset`: whether to load Arrow datasets instead of JSONL.
 - `dataset_format`: `arrow` for `save_to_disk` datasets or `json` / `jsonl` for base JSON files.
-- `train_dataset_dir` / `val_dataset_dir` / `test_dataset_dir`: Arrow dataset paths.
-- `train_json_path` / `val_json_path` / `test_json_path`: JSON or JSONL dataset paths.
+- `train_dataset_dir` / `val_dataset_dir`: training and validation Arrow dataset paths.
+- `train_json_path` / `val_json_path`: training and validation JSON or JSONL dataset paths.
+- `test_dataset_dir` / `test_json_path`: evaluation-only test dataset paths.
 - `adapter_model_dir`: optional SFT PEFT adapter to continue from before GRPO.
 - `use_4bit` / `use_8bit`: quantization settings.
 - `lora_enabled`, `lora_scope`, `lora_coverage`: LoRA adapter configuration.
@@ -137,6 +132,7 @@ Supported eval modes:
 - `eval_mode: grpo`
 
 For SFT or GRPO evaluation, set `is_peft_adapter` and `base_model_name` when loading a PEFT/LoRA adapter.
+SFT and GRPO have separate evaluator classes, both backed by the shared generative MOS evaluator.
 
 ### Output
 
