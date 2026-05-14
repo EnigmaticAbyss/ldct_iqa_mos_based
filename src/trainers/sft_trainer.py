@@ -3,15 +3,21 @@ from __future__ import annotations
 
 import json
 import logging
+import inspect
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 import torch
 from datasets import Dataset, load_from_disk
-from transformers import AutoModelForCausalLM, AutoProcessor
+from transformers import AutoProcessor
 from trl import SFTTrainer, SFTConfig
 from peft import get_peft_model
+
+try:
+    from transformers import AutoModelForImageTextToText as AutoModelClass
+except ImportError:
+    from transformers import AutoModelForCausalLM as AutoModelClass
 
 from src.data.loaders import DatasetLoader
 from src.data.format_builders import build_format_sft_dataset
@@ -146,13 +152,16 @@ class LDCTSFTTrainer:
     def load_model(self):
         bnb = build_bnb_config(self.cfg.use_4bit, self.cfg.use_8bit, compute_dtype=self.cfg.bnb_compute_dtype)
 
-        model = AutoModelForCausalLM.from_pretrained(
+        model = AutoModelClass.from_pretrained(
             self.cfg.model_name,
             device_map="auto",
             quantization_config=bnb,
             trust_remote_code=True,
         )
         processor = AutoProcessor.from_pretrained(self.cfg.model_name, trust_remote_code=True)
+        tokenizer = getattr(processor, "tokenizer", processor)
+        if getattr(tokenizer, "pad_token", None) is None and getattr(tokenizer, "eos_token", None) is not None:
+            tokenizer.pad_token = tokenizer.eos_token
 
         # Apply LoRA if enabled and not full_finetune
         if self.cfg.lora_enabled and self.cfg.lora_coverage != "full_finetune":
@@ -196,50 +205,62 @@ class LDCTSFTTrainer:
             assistant_only_loss=self.cfg.assistant_only_loss,
         )
 
-        args = SFTConfig(
-            output_dir=self.cfg.output_dir,
-            logging_dir=self.cfg.logging_dir,
+        kwargs = {
+            "model": self.model,
+            "args": self._sft_args(),
+            "train_dataset": self.train_ds,
+            "eval_dataset": self.val_ds,
+            "data_collator": collator,
+        }
+        trainer_sig = inspect.signature(SFTTrainer.__init__)
+        if "processing_class" in trainer_sig.parameters:
+            kwargs["processing_class"] = self.processor
+        elif "tokenizer" in trainer_sig.parameters:
+            kwargs["tokenizer"] = self.processor
 
-            num_train_epochs=self.cfg.num_train_epochs,
-            per_device_train_batch_size=self.cfg.per_device_train_batch_size,
-            per_device_eval_batch_size=self.cfg.per_device_eval_batch_size,
-            gradient_accumulation_steps=self.cfg.gradient_accumulation_steps,
-
-            learning_rate=self.cfg.learning_rate,
-            weight_decay=self.cfg.weight_decay,
-            warmup_ratio=self.cfg.warmup_ratio,
-
-            logging_steps=self.cfg.logging_steps,
-            save_steps=self.cfg.save_steps,
-            eval_steps=self.cfg.eval_steps,
-            eval_strategy="steps",  
-            save_strategy="steps",
-            save_total_limit=self.cfg.save_total_limit,
-            # Labels are already prompt-masked by FormatSFTCollator when
-            # assistant_only_loss=true in this repo's config.
-            assistant_only_loss=False,
-           
-            # IMPORTANT for custom multimodal collator
-            remove_unused_columns=self.cfg.remove_unused_columns,
-            dataset_kwargs=self.cfg.dataset_kwargs,
-
-            fp16=self.cfg.fp16,
-            bf16=self.cfg.bf16,
-
-            report_to=["tensorboard"],
-            # label_pad_token_id=-100,
-        )
-
-        self.trainer = SFTTrainer(
-            model=self.model,
-            args=args,
-            train_dataset=self.train_ds,
-            eval_dataset=self.val_ds,
-            data_collator=collator,
-            processing_class=self.processor,
-        )
+        self.trainer = SFTTrainer(**kwargs)
         self.trainer.add_callback(ProcessorSaveCallback(self.processor))
         logger.info("TRL SFTTrainer built.")
+
+    def _sft_args(self) -> SFTConfig:
+        candidates: Dict[str, Any] = {
+            "output_dir": self.cfg.output_dir,
+            "logging_dir": self.cfg.logging_dir,
+            "num_train_epochs": self.cfg.num_train_epochs,
+            "per_device_train_batch_size": self.cfg.per_device_train_batch_size,
+            "per_device_eval_batch_size": self.cfg.per_device_eval_batch_size,
+            "gradient_accumulation_steps": self.cfg.gradient_accumulation_steps,
+            "learning_rate": self.cfg.learning_rate,
+            "weight_decay": self.cfg.weight_decay,
+            "warmup_ratio": self.cfg.warmup_ratio,
+            "logging_steps": self.cfg.logging_steps,
+            "save_steps": self.cfg.save_steps,
+            "eval_steps": self.cfg.eval_steps,
+            "eval_strategy": "steps",
+            "save_strategy": "steps",
+            "save_total_limit": self.cfg.save_total_limit,
+            # Labels are already prompt-masked by FormatSFTCollator when
+            # assistant_only_loss=true in this repo's config.
+            "assistant_only_loss": False,
+            # IMPORTANT for custom multimodal collator.
+            "remove_unused_columns": self.cfg.remove_unused_columns,
+            "dataset_kwargs": self.cfg.dataset_kwargs,
+            "fp16": self.cfg.fp16,
+            "bf16": self.cfg.bf16,
+            "report_to": ["tensorboard"],
+        }
+
+        allowed = set(inspect.signature(SFTConfig.__init__).parameters) - {"self"}
+        if "eval_strategy" not in allowed and "evaluation_strategy" in allowed:
+            candidates["evaluation_strategy"] = candidates.pop("eval_strategy")
+
+        return SFTConfig(
+            **{
+                key: value
+                for key, value in candidates.items()
+                if key in allowed and value is not None
+            }
+        )
 
     # ---------------- Run ---------------- #
 
