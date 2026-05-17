@@ -1,0 +1,65 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{semml_report}[2026/05/17 SemML-like proceedings report style]
+
+\RequirePackage[letterpaper,top=0.75in,bottom=1.0in,left=0.75in,right=0.75in,columnsep=0.28in]{geometry}
+\RequirePackage{times}
+\RequirePackage{microtype}
+\RequirePackage{titlesec}
+\RequirePackage{caption}
+\RequirePackage{cite}
+\RequirePackage{xcolor}
+\RequirePackage{hyperref}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  citecolor=black,
+  urlcolor=blue
+}
+
+\setlength{\parindent}{1em}
+\setlength{\parskip}{0pt}
+\setlength{\textfloatsep}{10pt plus 1pt minus 2pt}
+\setlength{\floatsep}{8pt plus 1pt minus 2pt}
+\setlength{\intextsep}{8pt plus 1pt minus 2pt}
+\setlength{\abovedisplayskip}{6pt plus 2pt minus 2pt}
+\setlength{\belowdisplayskip}{6pt plus 2pt minus 2pt}
+
+\captionsetup{
+  font=small,
+  labelfont=bf,
+  labelsep=colon
+}
+
+\titleformat{\section}
+  {\normalfont\large\bfseries}
+  {\thesection.}{0.5em}{}
+\titleformat{\subsection}
+  {\normalfont\normalsize\bfseries}
+  {\thesubsection.}{0.5em}{}
+\titleformat{\subsubsection}
+  {\normalfont\normalsize\itshape}
+  {\thesubsubsection.}{0.5em}{}
+
+\titlespacing*{\section}{0pt}{10pt plus 2pt minus 2pt}{5pt}
+\titlespacing*{\subsection}{0pt}{8pt plus 2pt minus 2pt}{3pt}
+\titlespacing*{\subsubsection}{0pt}{6pt plus 1pt minus 1pt}{2pt}
+
+\renewcommand{\abstractname}{Abstract}
+
+\makeatletter
+\renewcommand{\maketitle}{%
+  \twocolumn[{%
+    \centering
+    {\Large\bfseries \@title \par}
+    \vskip 1.0em
+    {\normalsize \@author \par}
+    \vskip 1.2em
+  }]%
+}
+\makeatother
+
+\newcommand{\keywords}[1]{%
+  \vspace{0.4em}
+  \noindent\textbf{Keywords:} #1
+}

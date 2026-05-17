@@ -1,0 +1,124 @@
+\documentclass[10pt,twocolumn,letterpaper]{article}
+
+\usepackage{semml_report}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{url}
+\urlstyle{tt}
+
+\title{MOS-Based Low-Dose CT Image Quality Assessment with Vision-Language Models}
+
+\author{
+Author Name\\
+Department or Laboratory Name\\
+Institution Name\\
+\texttt{author.email@example.com}
+}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Low-dose computed tomography (LDCT) reduces radiation exposure but introduces image degradation that can affect diagnostic confidence. This report presents a mean-opinion-score (MOS) based image quality assessment pipeline for LDCT images using vision-language models (VLMs). The repository implements preprocessing from TIFF to normalized PNG and JSONL data, supervised fine-tuning (SFT) with LoRA adapters, optional MOS-regression training, GRPO-style refinement, and standardized evaluation. Experiments on the available test split show that the SFT VLM substantially improves MOS prediction over direct base-model prompting, reaching a mean absolute error of 0.347 and rank correlation above 0.91 on 300 test samples.
+\end{abstract}
+
+\keywords{low-dose CT, image quality assessment, MOS prediction, vision-language model, supervised fine-tuning}
+
+\section{Introduction}
+Low-dose CT acquisition is clinically attractive because it can lower patient radiation exposure. The cost is increased noise, altered texture, and possible loss of diagnostically useful detail. Automatic image quality assessment (IQA) can support model selection, reconstruction tuning, and quality-control workflows by estimating the subjective quality of a scan from image evidence.
+
+The repository accompanying this report targets MOS-based LDCT IQA. It trains and evaluates VLM-based predictors that receive a CT image and produce a scalar quality score. The central design goal is practical reproducibility: the code separates preprocessing, dataset conversion, training, evaluation, and model comparison into reusable scripts and JSON configuration files.
+
+The main contribution of this report is a compact paper-style description of the implemented pipeline and the current experimental artifacts. We summarize the data flow, training modes, evaluation metrics, and observed performance of the base VLM and SFT VLM checkpoints.
+
+\section{Related Work}
+Classical full-reference IQA metrics such as SSIM model perceptual fidelity through structural image similarity rather than only pixel error \cite{wang2004image}. Statistical image information has also been used to connect visual fidelity with natural image regularities \cite{sheikh2006statistical}. More recent perceptual metrics use deep feature spaces to align better with human judgments \cite{zhang2018unreasonable}.
+
+For this project, MOS prediction is treated as an image-conditioned language task. A medical VLM is adapted using lightweight LoRA modules \cite{hu2022lora}, allowing the base model to remain frozen while task-specific parameters are trained. The repository also includes configuration support for TRL-style SFT and GRPO workflows \cite{trl}, with MedGemma used as the base model family \cite{google2025medgemma}.
+
+\section{Dataset and Preprocessing}
+The expected raw data layout contains TIFF LDCT images and MOS annotations. The preprocessing entrypoint converts source scans into model-ready PNG images and writes split-specific JSONL files:
+\begin{equation}
+  \mathcal{D}=\{(x_i, y_i)\}_{i=1}^{N},
+\end{equation}
+where $x_i$ is an LDCT image and $y_i$ is its MOS target. The preprocessing configuration supports min-max or percentile normalization and optional resizing.
+
+After preprocessing, the repository stores base JSONL files under \path{datasets/processed/}. For TRL training, JSONL files can be converted into Arrow datasets using \path{scripts/build_sft_arrow_dataset.py}. This separation keeps data normalization independent from the training format required by a specific trainer.
+
+\section{Method}
+\subsection{Prompted MOS Prediction}
+The base VLM is evaluated by prompting it to predict the MOS score directly from an image. This establishes the zero- or few-instruction baseline for the same downstream parser and evaluation code used by fine-tuned models.
+
+\subsection{Supervised Fine-Tuning}
+The SFT path uses image-chat examples in which the model is instructed to return the MOS score. LoRA adapters are trained on top of the base VLM, reducing trainable parameters while preserving the general medical vision-language representation.
+
+At inference time, generated text is parsed into a scalar score. Invalid generations are tracked separately, making the prediction rate a first-class evaluation statistic:
+\begin{equation}
+  r_{\mathrm{valid}} = \frac{N_{\mathrm{valid}}}{N_{\mathrm{total}}}.
+\end{equation}
+
+\subsection{Regression and GRPO Modes}
+The codebase also contains a MOS regression trainer and GRPO refinement path. Regression mode predicts MOS through a direct scoring head. GRPO mode can start from an SFT LoRA adapter or directly from the base VLM and uses MOS closeness as a reward. These modes are available through the shared \path{scripts/train.py} and JSON configuration interface.
+
+\section{Evaluation}
+Evaluation is performed on the held-out test split. Let $\hat{y}_i$ denote the predicted MOS and $y_i$ the ground truth MOS. The primary error metrics are
+\begin{equation}
+  \mathrm{MAE}=\frac{1}{N}\sum_{i=1}^{N}|\hat{y}_i-y_i|
+\end{equation}
+and
+\begin{equation}
+  \mathrm{RMSE}=\sqrt{\frac{1}{N}\sum_{i=1}^{N}(\hat{y}_i-y_i)^2}.
+\end{equation}
+Correlation is reported with PLCC, SROCC, and KROCC to capture linear agreement, monotonic ranking, and pairwise ranking consistency.
+
+\begin{table}[t]
+  \centering
+  \caption{Current test-set MOS prediction results from the repository artifacts. Lower MAE/RMSE is better; higher correlations are better.}
+  \label{tab:results}
+  \small
+  \setlength{\tabcolsep}{3pt}
+  \begin{tabular}{@{}lrrrrr@{}}
+    \toprule
+    Model & MAE & RMSE & PLCC & SROCC & KROCC \\
+    \midrule
+    Base VLM & 4.453 & 5.395 & 0.014 & -0.020 & -0.016 \\
+    SFT VLM & \textbf{0.347} & \textbf{0.451} & \textbf{0.916} & \textbf{0.917} & \textbf{0.787} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Table~\ref{tab:results} shows a large improvement from supervised adaptation. The base VLM produces valid numeric predictions for all 300 test samples, but its scores are weakly correlated with MOS. The SFT VLM preserves a 100\% prediction rate and aligns closely with the MOS labels, improving both absolute error and rank correlation.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{../output/eval/sft/scatter.png}
+  \caption{SFT predictions versus ground-truth MOS on the test split.}
+  \label{fig:sft-scatter}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{../output/eval/sft/error_hist.png}
+  \caption{Distribution of SFT MOS prediction errors on the test split.}
+  \label{fig:sft-errors}
+\end{figure}
+
+\section{Implementation}
+The project is organized around reusable command-line entrypoints. Preprocessing is handled by \path{scripts/preprocess_ldct.py}. Training is launched through \path{scripts/train.py}, with the selected mode controlled by JSON files such as \path{config/sft.json}, \path{config/grpo.json}, and \path{config/regression.json}. Evaluation is run with \path{scripts/evaluate.py}, and model comparisons are generated with \path{scripts/compare_models.py}.
+
+This configuration-first layout makes the experiments easy to rerun on an HPC system. Shell scripts such as \path{run.sh} and \path{run_a100.sh} can wrap the same Python entrypoints while preserving the model, data, and output paths in versioned JSON files.
+
+\section{Discussion}
+The current SFT result indicates that MOS scoring benefits strongly from task-specific supervision. The improvement is not only an error reduction: the correlation metrics suggest that the adapted VLM learns the ordering of image quality across the test set. This is important for downstream use cases where relative quality ranking can matter as much as exact score calibration.
+
+The main limitation is that the current report reflects the available artifacts rather than a full ablation sweep. Future experiments should compare regression, SFT, and GRPO checkpoints under the same output directory convention, include confidence intervals across seeds, and analyze failure cases by CT anatomy, dose level, and MOS range.
+
+\section{Conclusion}
+This report documents a paper-style LDCT IQA pipeline based on MOS supervision and VLM adaptation. The implemented SFT model achieves strong test-set agreement with human MOS labels while retaining complete prediction coverage. The repository structure supports further experiments with regression heads, SFT adapters, and reward-based refinement using the same preprocessing and evaluation interfaces.
+
+\bibliographystyle{unsrt}
+\bibliography{references}
+
+\end{document}

@@ -1,13 +1,6 @@
-#!/bin/bash -l
-#SBATCH --job-name=iqa
-#SBATCH --partition=rtx3080
-#SBATCH --clusters=tinygpu
-#SBATCH --gres=gpu:rtx3080:1
-#SBATCH --time=15:00:00
-#SBATCH --nodes=1
-#SBATCH --export=ALL
-#SBATCH --mail-user=arashmousavi193@gmail.com
-#SBATCH --mail-type=ALL
+
+
+
 
 
 . ~/.bashrc
@@ -26,13 +19,5 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 mkdir -p "$HF_HOME"
 cd /home/woody/iwi5/iwi5255h/ldct_iqa_mos_based
 
-python -m scripts.sweep_grpo --config config/grpo_sweep.json --resume
-
-
-
-
-
-
-
-
-
+# python -m scripts.sweep_sft --config config/sft_sweep.json --dry-run
+python -m scripts.sweep_grpo --config config/grpo_sweep.json
