@@ -6,6 +6,17 @@ import re
 from typing import Optional
 
 NUMBER_RE = r"[+-]?(?:\d+(?:\.\d+)?|\.\d+)"
+MOS_MIN = 0.0
+MOS_MAX = 4.0
+
+
+def _is_mos_range(value: float) -> bool:
+    return MOS_MIN <= value <= MOS_MAX
+
+
+def _strip_special_tokens(text: str) -> str:
+    # Gemma-style unused tokens such as <unused94> should not become MOS=94.
+    return re.sub(r"<unused\d+>", " ", text)
 
 
 def parse_rating_from_json(text: str) -> Optional[float]:
@@ -23,7 +34,8 @@ def parse_rating_from_json(text: str) -> Optional[float]:
 
         obj = json.loads(match.group())
         if "rating" in obj:
-            return float(obj["rating"])
+            value = float(obj["rating"])
+            return value if _is_mos_range(value) else None
 
     except Exception:
         pass
@@ -64,7 +76,8 @@ def parse_rating_from_labeled_number(text: str) -> Optional[float]:
         label_re = rf"(?:mos\s+score|rating|predicted\s+score)\s*(?:is|:|=)\s*\**\s*({NUMBER_RE})"
         match = re.search(label_re, text, re.IGNORECASE)
         if match:
-            return float(match.group(1))
+            value = float(match.group(1))
+            return value if _is_mos_range(value) else None
     except Exception:
         pass
 
@@ -81,9 +94,11 @@ def parse_rating_from_number(text: str) -> Optional[float]:
         "Predicted score: 3.1"
     """
     try:
-        match = re.search(NUMBER_RE, text)
-        if match:
-            return float(match.group())
+        clean_text = _strip_special_tokens(text)
+        for match in re.finditer(NUMBER_RE, clean_text):
+            value = float(match.group())
+            if _is_mos_range(value):
+                return value
     except Exception:
         pass
 

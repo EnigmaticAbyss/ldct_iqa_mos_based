@@ -34,7 +34,7 @@
   "logging_steps": 10,
   "save_steps": 100,
   "eval_steps": 100,
-  "eval_strategy": "steps",
+  "eval_strategy": "no",
   "save_strategy": "steps",
   "save_total_limit": 3,
   "report_to": ["tensorboard"],
@@ -62,7 +62,7 @@
   "loss_type": null,
   "scale_rewards": null,
   "sync_ref_model": false,
-  "log_completions": true,
+  "log_completions": false,
 
   "use_vllm": false,
   "vllm_mode": "colocate",
