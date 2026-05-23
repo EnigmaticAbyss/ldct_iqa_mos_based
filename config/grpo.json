@@ -34,7 +34,8 @@
   "logging_steps": 10,
   "save_steps": 100,
   "eval_steps": 100,
-  "eval_strategy": "no",
+
+  "eval_strategy": "steps",
   "save_strategy": "steps",
   "save_total_limit": 3,
   "report_to": ["tensorboard"],
