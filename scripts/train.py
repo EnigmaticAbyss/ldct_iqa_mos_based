@@ -8,10 +8,25 @@ from pathlib import Path
 
 
 def load_json(path: Path) -> dict:
+    """
+    Read a JSON configuration file from disk.
+
+    Args:
+        path: Config file path.
+
+    Returns:
+        Parsed JSON dictionary.
+    """
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def main():
+    """
+    Dispatch training to the configured regression, SFT, or GRPO trainer.
+
+    Raises:
+        ValueError: If the training mode is missing or unsupported.
+    """
     ap = argparse.ArgumentParser(description="LDCT IQA training entrypoint")
     ap.add_argument("--config", type=Path, required=True, help="Path to training config JSON")
     args = ap.parse_args()

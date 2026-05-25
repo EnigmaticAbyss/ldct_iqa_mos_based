@@ -49,6 +49,7 @@ class RegressionEvaluator:
         use_8bit: bool = False,
         bnb_compute_dtype: str = "bf16",
     ):
+        """Store model, dataset, prompt, and quantization settings for evaluation."""
         self.model_dir = Path(model_dir)
         self.base_model_name = base_model_name
         self.is_peft_adapter = is_peft_adapter
@@ -75,6 +76,12 @@ class RegressionEvaluator:
     # -------------------------------------------------------
 
     def load_model(self):
+        """
+        Load the regression wrapper, processor, and optional quantization config.
+
+        The method restores either a full regression model directory or a PEFT
+        adapter backed by ``base_model_name``.
+        """
 
         logger.info(f"Loading regression model from {self.model_dir}")
 
@@ -103,6 +110,16 @@ class RegressionEvaluator:
     # -------------------------------------------------------
 
     def load_dataset(self) -> Dataset:
+        """
+        Load and validate the configured test dataset.
+
+        Returns:
+            Test dataset containing ``image_path`` and ``mos_score`` columns.
+
+        Raises:
+            ValueError: If required columns are missing.
+            FileNotFoundError: If the configured dataset path is missing.
+        """
 
         loader = DatasetLoader(
             data_dir=self.data_dir,
@@ -129,6 +146,15 @@ class RegressionEvaluator:
     # -------------------------------------------------------
 
     def predict(self, dataset: Dataset) -> List[float]:
+        """
+        Run MOS regression inference for each sample in the dataset.
+
+        Args:
+            dataset: Test dataset containing image paths.
+
+        Returns:
+            One predicted MOS float per dataset sample.
+        """
 
         preds: List[float] = []
         model_device = next(self.model.parameters()).device
@@ -160,6 +186,13 @@ class RegressionEvaluator:
     # -------------------------------------------------------
 
     def run(self) -> Dict:
+        """
+        Execute the full regression evaluation pipeline.
+
+        Returns:
+            Evaluation summary with metrics, sample count, and evaluator name.
+            Prediction CSV and plots are written to ``output_dir``.
+        """
 
         self.load_model()
 
@@ -200,6 +233,13 @@ class RegressionEvaluator:
     # -------------------------------------------------------
 
     def save_results(self, results: Dict, output_path: str):
+        """
+        Persist final evaluation metrics to a JSON file.
+
+        Args:
+            results: Evaluation summary returned by ``run``.
+            output_path: Destination JSON path.
+        """
 
         path = Path(output_path)
 

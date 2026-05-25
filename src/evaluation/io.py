@@ -46,6 +46,10 @@ def save_predictions_csv(
 def save_results_json(results: dict, out_path: str | Path):
     """
     Save final evaluation summary JSON.
+
+    Args:
+        results: Evaluation summary payload to serialize.
+        out_path: Destination JSON path.
     """
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)

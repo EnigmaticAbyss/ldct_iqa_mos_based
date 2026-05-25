@@ -12,6 +12,7 @@ def _filter_valid_pairs(
     y_true: List[float],
     y_pred: List[Optional[float]],
 ) -> Tuple[np.ndarray, np.ndarray]:
+    """Return numeric truth/prediction arrays for parsed predictions only."""
     pairs = [(float(t), float(p)) for t, p in zip(y_true, y_pred) if p is not None]
     if not pairs:
         return np.array([]), np.array([])
@@ -25,6 +26,15 @@ def save_scatter_plot(
     out_path: str | Path,
     title: str = "Predicted vs Ground Truth MOS",
 ):
+    """
+    Save a predicted-versus-ground-truth MOS scatter plot.
+
+    Args:
+        y_true: Ground-truth MOS values.
+        y_pred: Predicted MOS values, with ``None`` entries ignored.
+        out_path: Destination image path.
+        title: Plot title.
+    """
     yt, yp = _filter_valid_pairs(y_true, y_pred)
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -50,6 +60,15 @@ def save_error_histogram(
     out_path: str | Path,
     title: str = "Prediction Error Histogram",
 ):
+    """
+    Save a histogram of prediction errors for valid MOS predictions.
+
+    Args:
+        y_true: Ground-truth MOS values.
+        y_pred: Predicted MOS values, with ``None`` entries ignored.
+        out_path: Destination image path.
+        title: Plot title.
+    """
     yt, yp = _filter_valid_pairs(y_true, y_pred)
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)

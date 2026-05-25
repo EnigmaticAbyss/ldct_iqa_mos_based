@@ -23,6 +23,15 @@ def build_arrow_from_jsonl(
 ):
     """
     Converts base JSONL file to TRL Arrow dataset with messages and image paths.
+
+    Args:
+        base_jsonl: Input JSONL file containing ``image_path`` and ``mos_score``.
+        output_dir: Directory where the Arrow dataset will be saved.
+        system_prompt: System prompt inserted into each chat example.
+        user_text: User text inserted after the image placeholder.
+
+    Returns:
+        The generated Hugging Face ``Dataset``.
     """
     # Ensure output directory exists
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -58,6 +67,11 @@ def build_arrow_from_jsonl(
 
 
 def main():
+    """
+    Parse CLI arguments and build an SFT Arrow dataset from JSONL.
+
+    The command is a thin wrapper around ``build_arrow_from_jsonl``.
+    """
     import argparse
     ap = argparse.ArgumentParser()
     ap.add_argument("--base_jsonl", type=Path, required=True, help="Input base JSONL")

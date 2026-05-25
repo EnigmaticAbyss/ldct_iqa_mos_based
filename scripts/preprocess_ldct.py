@@ -15,6 +15,16 @@ from tqdm import tqdm
 # ---------------- Logging ---------------- #
 
 def setup_logger(log_path: Path, level: str = "INFO") -> logging.Logger:
+    """
+    Create a per-run logger that writes to console and a UTF-8 log file.
+
+    Args:
+        log_path: File path for the run log.
+        level: Logging level name.
+
+    Returns:
+        Configured logger instance.
+    """
     log_path.parent.mkdir(parents=True, exist_ok=True)
     logger = logging.getLogger(f"preprocess::{log_path.stem}")
     logger.setLevel(getattr(logging, level.upper(), logging.INFO))
@@ -38,6 +48,15 @@ def setup_logger(log_path: Path, level: str = "INFO") -> logging.Logger:
 # ---------------- Helpers ---------------- #
 
 def load_mos_map(path: Path) -> Dict[str, float]:
+    """
+    Load a filename-to-MOS mapping, skipping values that cannot be parsed.
+
+    Args:
+        path: JSON file containing filename keys and MOS values.
+
+    Returns:
+        Dictionary of filename strings to float MOS scores.
+    """
     raw = json.loads(path.read_text(encoding="utf-8"))
     out: Dict[str, float] = {}
     for k, v in raw.items():
@@ -49,6 +68,16 @@ def load_mos_map(path: Path) -> Dict[str, float]:
 
 
 def find_existing_file(tif_dir: Path, filename: str) -> Optional[Path]:
+    """
+    Find a TIFF file by exact name, extension variants, or case-insensitive match.
+
+    Args:
+        tif_dir: Directory containing TIFF images.
+        filename: Filename from the MOS mapping.
+
+    Returns:
+        Matching path when found, otherwise ``None``.
+    """
     cand = tif_dir / filename
     if cand.exists():
         return cand
@@ -68,6 +97,15 @@ def find_existing_file(tif_dir: Path, filename: str) -> Optional[Path]:
 
 
 def read_tiff_as_gray_array(path: Path) -> np.ndarray:
+    """
+    Read a TIFF image as a single-channel NumPy array.
+
+    Args:
+        path: TIFF image path.
+
+    Returns:
+        Grayscale NumPy array. Multi-channel images use the first channel.
+    """
     img = Image.open(path)
     arr = np.array(img)
     if arr.ndim == 3:
@@ -76,6 +114,21 @@ def read_tiff_as_gray_array(path: Path) -> np.ndarray:
 
 
 def normalize_to_uint8(arr: np.ndarray, norm: str, p_low: float, p_high: float) -> np.ndarray:
+    """
+    Normalize an image array to uint8 using min-max or percentile scaling.
+
+    Args:
+        arr: Input grayscale image array.
+        norm: Normalization mode, either ``minmax`` or ``percentile``.
+        p_low: Lower percentile used for percentile normalization.
+        p_high: Upper percentile used for percentile normalization.
+
+    Returns:
+        Normalized ``uint8`` image array.
+
+    Raises:
+        ValueError: If ``norm`` is unsupported.
+    """
     arr = arr.astype(np.float32)
 
     if norm == "minmax":
@@ -96,6 +149,18 @@ def normalize_to_uint8(arr: np.ndarray, norm: str, p_low: float, p_high: float) 
 
 
 def to_rgb_pil(gray8: np.ndarray, resize: bool, w: int, h: int) -> Image.Image:
+    """
+    Convert a grayscale uint8 array to RGB PIL format with optional resizing.
+
+    Args:
+        gray8: Grayscale uint8 image array.
+        resize: Whether to resize the output image.
+        w: Target width when resizing.
+        h: Target height when resizing.
+
+    Returns:
+        RGB PIL image.
+    """
     img = Image.fromarray(gray8, mode="L").convert("RGB")
     if resize:
         img = img.resize((w, h), Image.Resampling.BICUBIC)
@@ -103,6 +168,13 @@ def to_rgb_pil(gray8: np.ndarray, resize: bool, w: int, h: int) -> Image.Image:
 
 
 def write_jsonl(rows: List[Dict[str, Any]], out_path: Path):
+    """
+    Write dictionaries as newline-delimited JSON.
+
+    Args:
+        rows: Records to serialize.
+        out_path: Destination JSONL path.
+    """
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", encoding="utf-8") as f:
         for r in rows:
@@ -110,6 +182,17 @@ def write_jsonl(rows: List[Dict[str, Any]], out_path: Path):
 
 
 def split_train_val(rows: List[Dict[str, Any]], val_ratio: float, seed: int) -> Tuple[List[Dict], List[Dict]]:
+    """
+    Randomly split rows into train and validation sets.
+
+    Args:
+        rows: Dataset rows to split.
+        val_ratio: Fraction of rows assigned to validation.
+        seed: Random seed controlling the split.
+
+    Returns:
+        ``(train_rows, val_rows)``.
+    """
     rng = np.random.RandomState(seed)
     idx = np.arange(len(rows))
     rng.shuffle(idx)
@@ -126,6 +209,17 @@ def split_train_val(rows: List[Dict[str, Any]], val_ratio: float, seed: int) -> 
 # ---------------- Per-split processing ---------------- #
 
 def build_rows_keep_tif(tif_dir: Path, mos_map: Dict[str, float], logger: logging.Logger) -> Tuple[List[Dict], int]:
+    """
+    Build dataset rows that keep original TIFF paths.
+
+    Args:
+        tif_dir: Directory containing TIFF files.
+        mos_map: Mapping from filenames to MOS scores.
+        logger: Logger used for summary messages.
+
+    Returns:
+        A tuple of produced rows and number of missing files.
+    """
     rows = []
     missing = 0
     for fname, mos in mos_map.items():
@@ -150,6 +244,24 @@ def build_rows_to_png(
     resize_w: int,
     resize_h: int,
 ) -> Tuple[List[Dict], int, int]:
+    """
+    Convert TIFFs to PNGs and build dataset rows pointing at PNG files.
+
+    Args:
+        tif_dir: Directory containing TIFF files.
+        mos_map: Mapping from filenames to MOS scores.
+        png_dir: Output directory for converted PNG files.
+        logger: Logger used for warnings and summary messages.
+        norm: Image normalization mode.
+        p_low: Lower percentile for percentile normalization.
+        p_high: Upper percentile for percentile normalization.
+        resize: Whether to resize the output PNGs.
+        resize_w: Target width when resizing.
+        resize_h: Target height when resizing.
+
+    Returns:
+        A tuple of produced rows, missing-file count, and conversion-failure count.
+    """
     png_dir.mkdir(parents=True, exist_ok=True)
 
     rows = []
@@ -178,6 +290,19 @@ def build_rows_to_png(
 
 
 def process_split(name: str, split_cfg: Dict[str, Any], global_cfg: Dict[str, Any], logger: logging.Logger):
+    """
+    Process one configured split into JSONL rows.
+
+    Args:
+        name: Split name, such as ``train`` or ``test``.
+        split_cfg: Split-specific preprocessing settings.
+        global_cfg: Global preprocessing settings used as defaults.
+        logger: Logger used for progress and summary messages.
+
+    Raises:
+        FileNotFoundError: If required image or MOS paths are missing.
+        ValueError: If the split config is invalid or produces no MOS values.
+    """
     tif_dir = Path(split_cfg["tif_dir"])
     mos_json = Path(split_cfg["mos_json"])
     out_jsonl = Path(split_cfg["out_jsonl"])
@@ -260,6 +385,12 @@ def process_split(name: str, split_cfg: Dict[str, Any], global_cfg: Dict[str, An
 # ---------------- Main ---------------- #
 
 def main():
+    """
+    Run LDCT preprocessing for all configured splits.
+
+    The command reads a preprocessing config, processes train/test splits first,
+    and then processes any additional split entries.
+    """
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", type=Path, required=True)
     args = ap.parse_args()

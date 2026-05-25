@@ -39,6 +39,12 @@ def setup_logging(logging_dir: str | Path, log_name: str = "train.log", level: i
 
 
 def set_seed(seed: int) -> None:
+    """
+    Seed Python, NumPy, and Torch RNGs for reproducible training runs.
+
+    Args:
+        seed: Integer seed value applied to all supported RNGs.
+    """
     import random
     import numpy as np
 
@@ -75,9 +81,19 @@ class ProcessorSaveCallback(TrainerCallback):
     """
 
     def __init__(self, processor):
+        """Store the processor object that should be saved with checkpoints."""
         self.processor = processor
 
     def on_save(self, args, state: TrainerState, control: TrainerControl, **kwargs):
+        """
+        Save the processor into the current checkpoint on the main process.
+
+        Args:
+            args: Trainer arguments containing ``output_dir``.
+            state: Trainer state containing process rank and global step.
+            control: Trainer control object.
+            **kwargs: Extra callback values supplied by Trainer.
+        """
         if not state.is_world_process_zero:
             return
 
@@ -93,12 +109,27 @@ class ProcessorSaveCallback(TrainerCallback):
 
 @dataclass
 class DeviceInfo:
+    """
+    Snapshot of the active Torch device and mixed-precision support.
+
+    Attributes:
+        device: Torch device selected for training or evaluation.
+        is_cuda: Whether CUDA is available.
+        bf16_supported: Whether CUDA bf16 operations are supported.
+    """
+
     device: torch.device
     is_cuda: bool
     bf16_supported: bool
 
 
 def get_device_info() -> DeviceInfo:
+    """
+    Detect the active device and whether CUDA bf16 is supported.
+
+    Returns:
+        ``DeviceInfo`` with the selected device and precision capability flags.
+    """
     is_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if is_cuda else "cpu")
     bf16_supported = False
@@ -108,7 +139,18 @@ def get_device_info() -> DeviceInfo:
         except Exception:
             bf16_supported = False
     return DeviceInfo(device=device, is_cuda=is_cuda, bf16_supported=bf16_supported)
+
+
 def find_latest_checkpoint(output_dir: str | Path) -> Optional[str]:
+    """
+    Return the newest ``checkpoint-N`` directory under an output directory.
+
+    Args:
+        output_dir: Trainer output directory to scan.
+
+    Returns:
+        Path string for the latest checkpoint, or ``None`` when no checkpoint exists.
+    """
     output_dir = Path(output_dir)
     if not output_dir.exists():
         return None
@@ -129,6 +171,17 @@ def find_latest_checkpoint(output_dir: str | Path) -> Optional[str]:
 
 
 def train_with_optional_resume(trainer, output_dir: str | Path, logger: logging.Logger):
+    """
+    Train with automatic resume from the newest checkpoint when available.
+
+    Args:
+        trainer: Hugging Face or TRL trainer instance with a ``train`` method.
+        output_dir: Directory that may contain ``checkpoint-N`` subdirectories.
+        logger: Logger used to report resume/start behavior.
+
+    Returns:
+        The object returned by ``trainer.train``.
+    """
     latest_ckpt = find_latest_checkpoint(output_dir)
 
     if latest_ckpt is not None:

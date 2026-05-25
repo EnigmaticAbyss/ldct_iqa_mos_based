@@ -41,15 +41,41 @@ METRIC_DIRECTIONS = {
 
 
 def load_json(path: Path) -> Dict[str, Any]:
+    """
+    Read a JSON file into a dictionary.
+
+    Args:
+        path: JSON file path.
+
+    Returns:
+        Parsed JSON object.
+    """
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def write_json(path: Path, payload: Any) -> None:
+    """
+    Write a JSON-serializable payload with parent directories created.
+
+    Args:
+        path: Destination JSON path.
+        payload: Value to serialize.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
 def resolve_existing_path(value: str | Path, config_dir: Path) -> Path:
+    """
+    Resolve relative paths against the current directory first, then config directory.
+
+    Args:
+        value: Absolute or relative path value from config.
+        config_dir: Directory containing the sweep config.
+
+    Returns:
+        Resolved ``Path``. The path may still be missing if neither candidate exists.
+    """
     path = Path(value)
     if path.is_absolute():
         return path
@@ -62,6 +88,21 @@ def resolve_existing_path(value: str | Path, config_dir: Path) -> Path:
 
 
 def load_config_ref(value: str | Dict[str, Any], config_dir: Path, label: str) -> Dict[str, Any]:
+    """
+    Load a config from an inline object or a JSON path reference.
+
+    Args:
+        value: Inline config dictionary or path to a JSON config.
+        config_dir: Directory used to resolve relative config paths.
+        label: Name used in error messages.
+
+    Returns:
+        Deep-copied config dictionary.
+
+    Raises:
+        FileNotFoundError: If a referenced JSON file does not exist.
+        TypeError: If ``value`` is neither a dictionary nor a string path.
+    """
     if isinstance(value, dict):
         return copy.deepcopy(value)
     if isinstance(value, str):
@@ -73,6 +114,16 @@ def load_config_ref(value: str | Dict[str, Any], config_dir: Path, label: str) -
 
 
 def deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Recursively merge override values into a copy of the base dictionary.
+
+    Args:
+        base: Default configuration dictionary.
+        override: Values that should replace or recursively update ``base``.
+
+    Returns:
+        Merged dictionary, leaving both inputs unmodified.
+    """
     out = copy.deepcopy(base)
     for key, value in override.items():
         if isinstance(value, dict) and isinstance(out.get(key), dict):
@@ -83,6 +134,15 @@ def deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]
 
 
 def expand_dotted_keys(values: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Expand keys like ``trainer.lr`` into nested dictionaries.
+
+    Args:
+        values: Flat dictionary whose keys may contain dots.
+
+    Returns:
+        Nested dictionary suitable for deep merging into a config.
+    """
     if not values:
         return {}
 
@@ -101,6 +161,16 @@ def expand_dotted_keys(values: Optional[Dict[str, Any]]) -> Dict[str, Any]:
 
 
 def flatten_dict(values: Dict[str, Any], prefix: str = "") -> Dict[str, Any]:
+    """
+    Flatten a nested dictionary into dotted-key form.
+
+    Args:
+        values: Nested dictionary to flatten.
+        prefix: Prefix used during recursive flattening.
+
+    Returns:
+        Flat dictionary with dotted keys.
+    """
     out: Dict[str, Any] = {}
     for key, value in values.items():
         flat_key = f"{prefix}.{key}" if prefix else str(key)
@@ -112,6 +182,15 @@ def flatten_dict(values: Dict[str, Any], prefix: str = "") -> Dict[str, Any]:
 
 
 def short_param_name(key: str) -> str:
+    """
+    Return a compact display name for common sweep parameter keys.
+
+    Args:
+        key: Full or dotted parameter key.
+
+    Returns:
+        Short alias when known, otherwise the final dotted-key segment.
+    """
     aliases = {
         "learning_rate": "lr",
         "lora_r": "r",
@@ -127,6 +206,15 @@ def short_param_name(key: str) -> str:
 
 
 def format_name_value(value: Any) -> str:
+    """
+    Format a parameter value for inclusion in a run name.
+
+    Args:
+        value: Parameter value.
+
+    Returns:
+        Stable short string representation.
+    """
     if isinstance(value, float):
         return f"{value:g}"
     if isinstance(value, bool):
@@ -135,12 +223,31 @@ def format_name_value(value: Any) -> str:
 
 
 def slugify(value: str) -> str:
+    """
+    Convert arbitrary text into a filesystem-friendly run-name slug.
+
+    Args:
+        value: Raw name text.
+
+    Returns:
+        Slug containing only alphanumeric characters, underscores, dots, and hyphens.
+    """
     value = re.sub(r"[^A-Za-z0-9_.-]+", "-", value)
     value = value.strip("-._")
     return value or "run"
 
 
 def make_run_name(overrides: Dict[str, Any], index: int) -> str:
+    """
+    Build a run name from override parameters or a default index.
+
+    Args:
+        overrides: Nested training overrides for one run.
+        index: One-based run index used when no overrides are present.
+
+    Returns:
+        Filesystem-friendly run name.
+    """
     flat = flatten_dict(overrides)
     if not flat:
         return f"run_{index:03d}"
@@ -153,6 +260,16 @@ def make_run_name(overrides: Dict[str, Any], index: int) -> str:
 
 
 def unique_name(name: str, seen: set[str]) -> str:
+    """
+    Make a run name unique within a sweep.
+
+    Args:
+        name: Desired run name.
+        seen: Set of names already assigned in this sweep.
+
+    Returns:
+        Unique slugified name, adding a numeric suffix when needed.
+    """
     candidate = slugify(name)
     if candidate not in seen:
         seen.add(candidate)
@@ -167,6 +284,18 @@ def unique_name(name: str, seen: set[str]) -> str:
 
 
 def grid_runs(grid: Dict[str, List[Any]]) -> List[Dict[str, Any]]:
+    """
+    Expand a parameter grid into run specification dictionaries.
+
+    Args:
+        grid: Mapping from parameter names to lists of values.
+
+    Returns:
+        Run specs containing generated names and train/eval override sections.
+
+    Raises:
+        ValueError: If any grid entry is not a non-empty list.
+    """
     if not grid:
         return []
 
@@ -191,6 +320,18 @@ def grid_runs(grid: Dict[str, List[Any]]) -> List[Dict[str, Any]]:
 
 
 def explicit_runs(raw_runs: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Normalize explicitly listed sweep runs into run specifications.
+
+    Args:
+        raw_runs: Iterable of run dictionaries from the sweep config.
+
+    Returns:
+        Run specs with names, train overrides, and eval overrides.
+
+    Raises:
+        TypeError: If a run entry is not a dictionary.
+    """
     runs: List[Dict[str, Any]] = []
     for index, raw in enumerate(raw_runs, start=1):
         if not isinstance(raw, dict):
@@ -213,6 +354,18 @@ def explicit_runs(raw_runs: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 
 def build_run_specs(sweep_cfg: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """
+    Combine grid and explicit runs, then assign unique run names.
+
+    Args:
+        sweep_cfg: Parsed sweep configuration.
+
+    Returns:
+        Normalized run specs ready for config generation.
+
+    Raises:
+        ValueError: If neither ``grid`` nor ``runs`` is defined.
+    """
     runs = []
     runs.extend(grid_runs(sweep_cfg.get("grid", {})))
     runs.extend(explicit_runs(sweep_cfg.get("runs", [])))
@@ -227,6 +380,15 @@ def build_run_specs(sweep_cfg: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 
 def is_peft_adapter_train(train_cfg: Dict[str, Any]) -> bool:
+    """
+    Infer whether a training config will produce a PEFT adapter.
+
+    Args:
+        train_cfg: Training configuration for one run.
+
+    Returns:
+        ``True`` when the run is expected to save PEFT adapter artifacts.
+    """
     if train_cfg.get("adapter_model_dir"):
         return True
     return bool(train_cfg.get("lora_enabled", False)) and train_cfg.get("lora_coverage") != "full_finetune"
@@ -240,6 +402,19 @@ def build_train_eval_configs(
     run_dir: Path,
     force_separate_output_dirs: bool,
 ) -> tuple[Dict[str, Any], Dict[str, Any], Path, Path]:
+    """
+    Build per-run train/eval configs and their model/eval output paths.
+
+    Args:
+        base_train_cfg: Base training config before run overrides.
+        base_eval_cfg: Base evaluation config before run overrides.
+        run: Normalized run spec with train/eval overrides.
+        run_dir: Directory dedicated to this run.
+        force_separate_output_dirs: Whether to force outputs under ``run_dir``.
+
+    Returns:
+        Tuple of train config, eval config, model output directory, and eval result path.
+    """
     train_overrides = run.get("train", {})
     eval_overrides = run.get("eval", {})
 
@@ -268,10 +443,29 @@ def build_train_eval_configs(
 
 
 def command_to_string(argv: List[str]) -> str:
+    """
+    Render a command argument list as a shell-quoted string.
+
+    Args:
+        argv: Command arguments.
+
+    Returns:
+        Shell-safe display string for logging.
+    """
     return " ".join(shlex.quote(part) for part in argv)
 
 
 def run_command(argv: List[str], *, dry_run: bool) -> None:
+    """
+    Print and optionally execute a subprocess command.
+
+    Args:
+        argv: Command arguments to execute.
+        dry_run: If true, only print the command.
+
+    Raises:
+        subprocess.CalledProcessError: If the command exits non-zero.
+    """
     print(f"[sweep] {command_to_string(argv)}", flush=True)
     if dry_run:
         return
@@ -279,6 +473,15 @@ def run_command(argv: List[str], *, dry_run: bool) -> None:
 
 
 def valid_json_file(path: Path) -> bool:
+    """
+    Return whether a path exists and contains parseable JSON.
+
+    Args:
+        path: Candidate JSON path.
+
+    Returns:
+        ``True`` when the file exists and can be parsed.
+    """
     if not path.exists():
         return False
     try:
@@ -289,6 +492,15 @@ def valid_json_file(path: Path) -> bool:
 
 
 def find_latest_checkpoint(output_dir: str | Path) -> Optional[Path]:
+    """
+    Return the newest ``checkpoint-N`` directory for a training output.
+
+    Args:
+        output_dir: Directory to scan.
+
+    Returns:
+        Latest checkpoint path, or ``None`` if no checkpoints are present.
+    """
     output_dir = Path(output_dir)
     if not output_dir.exists():
         return None
@@ -308,6 +520,15 @@ def find_latest_checkpoint(output_dir: str | Path) -> Optional[Path]:
 
 
 def load_metrics(path: Path) -> Dict[str, Any]:
+    """
+    Load metrics from an evaluation result file if present and valid.
+
+    Args:
+        path: Evaluation result JSON path.
+
+    Returns:
+        Metrics dictionary, or an empty dictionary if unavailable.
+    """
     if not path.exists():
         return {}
     try:
@@ -319,10 +540,32 @@ def load_metrics(path: Path) -> Dict[str, Any]:
 
 
 def is_valid_number(value: Any) -> bool:
+    """
+    Return whether a value is numeric and not NaN.
+
+    Args:
+        value: Candidate value.
+
+    Returns:
+        ``True`` for int/float values that are not NaN.
+    """
     return isinstance(value, (int, float)) and not math.isnan(float(value))
 
 
 def infer_metric_mode(metric: str, explicit_mode: Optional[str]) -> str:
+    """
+    Resolve whether a metric should be minimized or maximized.
+
+    Args:
+        metric: Metric name to rank by.
+        explicit_mode: Optional override, either ``min`` or ``max``.
+
+    Returns:
+        Ranking direction for the metric.
+
+    Raises:
+        ValueError: If an explicit mode is provided but unsupported.
+    """
     if explicit_mode:
         mode = explicit_mode.lower()
         if mode not in {"min", "max"}:
@@ -332,9 +575,29 @@ def infer_metric_mode(metric: str, explicit_mode: Optional[str]) -> str:
 
 
 def sort_records(records: List[Dict[str, Any]], primary_metric: str, mode: str) -> List[Dict[str, Any]]:
+    """
+    Sort sweep records by the configured primary metric.
+
+    Args:
+        records: Per-run sweep records.
+        primary_metric: Metric key used for ranking.
+        mode: ``min`` or ``max`` ranking direction.
+
+    Returns:
+        Records sorted with invalid/missing metric values last.
+    """
     reverse = mode == "max"
 
     def key_fn(record: Dict[str, Any]):
+        """
+        Build a sortable key that pushes missing metrics to the end.
+
+        Args:
+            record: Sweep record to rank.
+
+        Returns:
+            Tuple used by ``sorted``.
+        """
         value = record.get("metrics", {}).get(primary_metric)
         if not is_valid_number(value):
             return (1, 0.0)
@@ -345,6 +608,16 @@ def sort_records(records: List[Dict[str, Any]], primary_metric: str, mode: str) 
 
 
 def first_valid_best(records: List[Dict[str, Any]], primary_metric: str) -> Optional[Dict[str, Any]]:
+    """
+    Return the first ranked record that has a valid primary metric.
+
+    Args:
+        records: Already-ranked sweep records.
+        primary_metric: Metric key used to check validity.
+
+    Returns:
+        Best valid record, or ``None`` if all records are missing the metric.
+    """
     for record in records:
         if is_valid_number(record.get("metrics", {}).get(primary_metric)):
             return record
@@ -352,6 +625,15 @@ def first_valid_best(records: List[Dict[str, Any]], primary_metric: str) -> Opti
 
 
 def csv_value(value: Any) -> Any:
+    """
+    Convert nested values to stable CSV cell strings.
+
+    Args:
+        value: Value destined for a CSV cell.
+
+    Returns:
+        Empty string for ``None``, JSON for nested values, otherwise the value itself.
+    """
     if value is None:
         return ""
     if isinstance(value, (dict, list)):
@@ -360,6 +642,13 @@ def csv_value(value: Any) -> Any:
 
 
 def save_summary_csv(records: List[Dict[str, Any]], path: Path) -> None:
+    """
+    Write a ranked sweep summary CSV with params and metrics columns.
+
+    Args:
+        records: Ranked sweep records.
+        path: Destination CSV path.
+    """
     param_keys = sorted({key for record in records for key in record.get("params", {})})
     metric_keys = sorted(
         set(DEFAULT_METRICS)
@@ -404,6 +693,15 @@ def save_summary_csv(records: List[Dict[str, Any]], path: Path) -> None:
 
 
 def aggregate(values: List[float]) -> Dict[str, Optional[float] | int]:
+    """
+    Compute count, mean, standard deviation, min, and max for numeric values.
+
+    Args:
+        values: Numeric values to aggregate.
+
+    Returns:
+        Summary statistics with ``None`` values when the input is empty.
+    """
     if not values:
         return {"count": 0, "mean": None, "std": None, "min": None, "max": None}
 
@@ -419,6 +717,16 @@ def aggregate(values: List[float]) -> Dict[str, Optional[float] | int]:
 
 
 def save_parameter_effects(records: List[Dict[str, Any]], out_dir: Path) -> tuple[Path, Path]:
+    """
+    Summarize metric distributions for each varied sweep parameter.
+
+    Args:
+        records: Sweep records with flattened params and metrics.
+        out_dir: Directory where JSON and CSV summaries should be written.
+
+    Returns:
+        Paths to the generated JSON and CSV parameter-effect files.
+    """
     param_keys = sorted({key for record in records for key in record.get("params", {})})
     metric_keys = sorted(
         set(DEFAULT_METRICS)
@@ -473,6 +781,19 @@ def save_parameter_effects(records: List[Dict[str, Any]], out_dir: Path) -> tupl
 
 
 def run_sweep(args: argparse.Namespace) -> Dict[str, Any]:
+    """
+    Execute all configured sweep runs and write summary/comparison artifacts.
+
+    Args:
+        args: Parsed CLI arguments from a sweep entrypoint.
+
+    Returns:
+        Sweep result containing ranked runs, comparison artifacts, and best-run data.
+
+    Raises:
+        subprocess.CalledProcessError: If a train/eval command fails and
+            ``continue_on_error`` is disabled.
+    """
     sweep_cfg_path = args.config
     sweep_cfg = load_json(sweep_cfg_path)
     config_dir = sweep_cfg_path.parent
@@ -628,6 +949,13 @@ def run_sweep(args: argparse.Namespace) -> Dict[str, Any]:
 
 
 def add_sweep_args(ap: argparse.ArgumentParser, config_help: str) -> None:
+    """
+    Register common CLI arguments used by all sweep entrypoints.
+
+    Args:
+        ap: Argument parser to modify.
+        config_help: Help text for the required ``--config`` argument.
+    """
     ap.add_argument("--config", type=Path, required=True, help=config_help)
     ap.add_argument("--dry-run", action="store_true", help="Write per-run configs and print commands only")
     ap.add_argument("--skip-train", action="store_true", help="Do not run training")
@@ -642,10 +970,23 @@ def add_sweep_args(ap: argparse.ArgumentParser, config_help: str) -> None:
 
 
 def print_sweep_result(result: Dict[str, Any]) -> None:
+    """
+    Print the sweep result without embedding all per-run records.
+
+    Args:
+        result: Full sweep result dictionary.
+    """
     print(json.dumps({key: result[key] for key in result if key != "runs"}, indent=2))
 
 
 def main_for_sweep(description: str, config_help: str) -> None:
+    """
+    Run the shared sweep CLI with entrypoint-specific help text.
+
+    Args:
+        description: Argument parser description for the concrete sweep entrypoint.
+        config_help: Help text for the required ``--config`` argument.
+    """
     ap = argparse.ArgumentParser(description=description)
     add_sweep_args(ap, config_help=config_help)
     args = ap.parse_args()

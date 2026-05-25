@@ -11,10 +11,12 @@ MOS_MAX = 4.0
 
 
 def _is_mos_range(value: float) -> bool:
+    """Return whether a parsed score is inside the expected MOS range."""
     return MOS_MIN <= value <= MOS_MAX
 
 
 def _strip_special_tokens(text: str) -> str:
+    """Remove generated placeholder tokens that can confuse numeric parsing."""
     # Gemma-style unused tokens such as <unused94> should not become MOS=94.
     return re.sub(r"<unused\d+>", " ", text)
 

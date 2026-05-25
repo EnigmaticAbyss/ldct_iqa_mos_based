@@ -27,6 +27,14 @@ def build_messages(
 ) -> list[dict]:
     """
     TRL chat format with an image placeholder.
+
+    Args:
+        mos: Ground-truth MOS value to encode as the assistant answer.
+        system_prompt: System instruction placed before the user turn.
+        user_text: User instruction paired with the image placeholder.
+
+    Returns:
+        A system/user/assistant chat message list for SFT.
     """
     return [
         {
@@ -103,6 +111,7 @@ def build_format_sft_dataset(
     """
 
     def _map(ex: Dict[str, Any]) -> Dict[str, Any]:
+        """Convert a base MOS row into one TRL chat-training row."""
         mos = float(ex["mos_score"])
         return {
             "messages": build_messages(mos, system_prompt=system_prompt, user_text=user_text),
@@ -138,6 +147,7 @@ def build_format_grpo_dataset(
     """
 
     def _map(ex: Dict[str, Any]) -> Dict[str, Any]:
+        """Convert a base or SFT row into one GRPO prompt row."""
         mos = float(ex["mos_score"])
         messages = ex.get("messages")
         prompt = strip_assistant_turns(messages) if messages else build_prompt_messages(

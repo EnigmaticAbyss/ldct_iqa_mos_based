@@ -24,11 +24,28 @@ class MOSRegressionCollator:
     """
 
     def __init__(self, processor, max_length: Optional[int] = 256, prompt_text: str = "Predict MOS score."):
+        """
+        Configure regression batch construction.
+
+        Args:
+            processor: Multimodal Hugging Face processor for text and images.
+            max_length: Maximum token length passed to the processor.
+            prompt_text: Fixed text prompt paired with every image.
+        """
         self.processor = processor
         self.max_length = max_length
         self.prompt_text = prompt_text
 
     def __call__(self, examples: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
+        """
+        Convert raw examples into model inputs and MOS labels.
+
+        Args:
+            examples: Batch of rows containing ``image_path`` and ``mos_score``.
+
+        Returns:
+            Processor tensor batch with an added float ``labels`` tensor.
+        """
         images = [Image.open(ex["image_path"]).convert("RGB") for ex in examples]
 
         # Many VLM processors expect text + image together. We keep text minimal and constant.
@@ -66,6 +83,14 @@ class FormatSFTCollator:
     """
 
     def __init__(self, processor, max_length: int = 2048, assistant_only_loss: bool = True):
+        """
+        Configure SFT batch construction.
+
+        Args:
+            processor: Multimodal Hugging Face processor with chat-template support.
+            max_length: Maximum token length passed to the processor.
+            assistant_only_loss: Whether prompt tokens should be masked out of loss.
+        """
         self.processor = processor
         self.max_length = max_length
         self.assistant_only_loss = assistant_only_loss
@@ -73,6 +98,15 @@ class FormatSFTCollator:
 
     @staticmethod
     def _prompt_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Return the prompt turns before the first assistant response.
+
+        Args:
+            messages: TRL chat messages for one example.
+
+        Returns:
+            Messages up to, but not including, the first assistant turn.
+        """
         prompt = []
         for message in messages:
             if message.get("role") == "assistant":
@@ -86,6 +120,17 @@ class FormatSFTCollator:
         batch: Dict[str, torch.Tensor],
         prompt_batch: Dict[str, torch.Tensor],
     ) -> torch.Tensor:
+        """
+        Mask prompt tokens so loss is applied only to assistant completions.
+
+        Args:
+            labels: Token labels cloned from ``input_ids``.
+            batch: Full prompt-plus-answer processor batch.
+            prompt_batch: Processor batch containing only the prompt portion.
+
+        Returns:
+            The labels tensor with prompt and padding positions set to ``-100``.
+        """
         attention_mask = batch.get("attention_mask")
         prompt_attention_mask = prompt_batch.get("attention_mask")
         pad_id = getattr(self.processor.tokenizer, "pad_token_id", None)
@@ -117,6 +162,15 @@ class FormatSFTCollator:
         return labels
 
     def __call__(self, examples: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
+        """
+        Build multimodal SFT tensors and causal-language-model labels.
+
+        Args:
+            examples: Batch of TRL chat rows with ``messages`` and ``image_path``.
+
+        Returns:
+            Processor tensor batch with masked ``labels`` for causal LM training.
+        """
         texts = [
             self.processor.apply_chat_template(
                 ex["messages"],

@@ -11,6 +11,17 @@ logger = logging.getLogger("grpo_rewards")
 
 @dataclass
 class MOSRewardConfig:
+    """
+    Parameters controlling MOS parsing, clipping, and reward shaping.
+
+    Attributes:
+        mos_min: Minimum valid MOS value.
+        mos_max: Maximum valid MOS value.
+        reward_kind: Error-to-reward transform.
+        missing_reward: Reward assigned when a completion cannot be parsed.
+        clamp_prediction: Whether parsed MOS values are clamped before scoring.
+    """
+
     mos_min: float = 0.0
     mos_max: float = 4.0
     reward_kind: str = "neg_abs_error"
@@ -21,6 +32,16 @@ class MOSRewardConfig:
 
 
 def completion_to_text(completion: Any) -> str:
+    """
+    Normalize a TRL completion object into plain text for MOS parsing.
+
+    Args:
+        completion: Completion value returned by TRL, usually text, a chat dict,
+            or a list of chat/content blocks.
+
+    Returns:
+        Text content joined into a single string.
+    """
     if isinstance(completion, str):
         return completion
 
@@ -40,6 +61,7 @@ def completion_to_text(completion: Any) -> str:
 
 
 def _content_to_text(content: Any) -> str:
+    """Extract text from a chat content value or list of content blocks."""
     if isinstance(content, str):
         return content
     if isinstance(content, list):
@@ -54,6 +76,19 @@ def _content_to_text(content: Any) -> str:
 
 
 def _as_float_list(values: Optional[Iterable[Any]], expected_len: int) -> list[float]:
+    """
+    Validate and convert MOS target values passed by the reward trainer.
+
+    Args:
+        values: Iterable of MOS targets from the dataset column.
+        expected_len: Number of targets expected for the current batch.
+
+    Returns:
+        MOS targets converted to floats.
+
+    Raises:
+        ValueError: If the target column is missing or has the wrong length.
+    """
     if values is None:
         raise ValueError("MOS reward requires the dataset column 'mos_score'.")
     out = [float(value) for value in values]
@@ -67,6 +102,7 @@ def _score_prediction(
     target: float,
     cfg: MOSRewardConfig,
 ) -> tuple[float, Optional[float], Optional[float]]:
+    """Convert one parsed prediction into a scalar reward and diagnostics."""
     if pred is None:
         return float(cfg.missing_reward), None, None
 
@@ -94,12 +130,33 @@ def _score_prediction(
 
 
 def make_mos_reward_function(cfg: MOSRewardConfig):
+    """
+    Create the TRL reward callback bound to a MOS reward configuration.
+
+    Args:
+        cfg: Reward scoring configuration.
+
+    Returns:
+        Callable reward function compatible with TRL GRPOTrainer.
+    """
     def mos_score_reward(
         prompts: list[Any],
         completions: list[Any],
         mos_score: Optional[list[Any]] = None,
         **kwargs: Any,
     ) -> list[float]:
+        """
+        Score generated completions against MOS targets for one GRPO batch.
+
+        Args:
+            prompts: Prompt batch supplied by TRL; unused by this reward.
+            completions: Generated completions to parse and score.
+            mos_score: Ground-truth MOS values from the dataset column.
+            **kwargs: Optional TRL logging hooks such as ``log_metric``.
+
+        Returns:
+            Reward value for each completion.
+        """
         targets = _as_float_list(mos_score, len(completions))
         rewards: list[float] = []
         parsed_scores: list[Optional[float]] = []

@@ -31,6 +31,17 @@ logger = logging.getLogger("regression_trainer")
 
 @dataclass
 class RegressionTrainConfig:
+    """
+    Configuration values for MOS regression training.
+
+    Attributes:
+        model_name: Base VLM checkpoint or model identifier.
+        data_dir: Root directory for regression train/validation datasets.
+        output_dir: Directory where checkpoints and final model artifacts are saved.
+        loss_type: Regression loss to optimize, either ``mse`` or ``huber``.
+        lora_enabled: Whether to attach LoRA adapters instead of full fine-tuning.
+    """
+
     # I/O
     model_name: str
     data_dir: str = "data/processed"
@@ -90,10 +101,24 @@ class RegressionTrainConfig:
 
 
 class RegressionConfigSaveCallback(TrainerCallback):
+    """
+    Writes regression metadata into each Trainer checkpoint.
+
+    The metadata is needed so ``VLMForMOSRegression.from_pretrained`` can
+    reconstruct the regression wrapper and MOS range during evaluation.
+    """
+
     def __init__(self, metadata: Dict[str, Any]):
+        """
+        Store serializable regression metadata for checkpoint saves.
+
+        Args:
+            metadata: Values to write into ``regression_config.json``.
+        """
         self.metadata = dict(metadata)
 
     def _save(self, path: Path) -> None:
+        """Write regression metadata to a target checkpoint directory."""
         path.mkdir(parents=True, exist_ok=True)
         (path / "regression_config.json").write_text(
             json.dumps(self.metadata, indent=2),
@@ -101,13 +126,36 @@ class RegressionConfigSaveCallback(TrainerCallback):
         )
 
     def on_save(self, args, state: TrainerState, control: TrainerControl, **kwargs):
+        """
+        Save metadata for the current checkpoint on the main process.
+
+        Args:
+            args: Trainer arguments containing ``output_dir``.
+            state: Trainer state containing process rank and global step.
+            control: Trainer control object.
+            **kwargs: Extra callback values supplied by Trainer.
+        """
         if not state.is_world_process_zero:
             return
         self._save(Path(args.output_dir) / f"checkpoint-{state.global_step}")
 
 
 class LDCTRegressionTrainer:
+    """
+    Orchestrates LDCT MOS regression-head training with HF Trainer.
+
+    The trainer loads base MOS datasets, wraps a VLM with a scalar MOS head,
+    optionally applies LoRA, and saves both model weights and regression metadata.
+    """
+
     def __init__(self, config_dict: Dict[str, Any]):
+        """
+        Build trainer state from a raw configuration dictionary.
+
+        Args:
+            config_dict: JSON-compatible configuration values for
+                ``RegressionTrainConfig``.
+        """
         self.cfg = RegressionTrainConfig(**config_dict)
 
         setup_logging(self.cfg.logging_dir, log_name="regression.log")
@@ -124,6 +172,13 @@ class LDCTRegressionTrainer:
     # ---------------- Data ---------------- #
 
     def load_data(self):
+        """
+        Load train/validation datasets for regression training.
+
+        Raises:
+            ValueError: If required ``image_path`` or ``mos_score`` columns are missing.
+            FileNotFoundError: If the configured dataset files/directories are missing.
+        """
         loader = DatasetLoader(
             data_dir=self.cfg.data_dir,
             use_jsonl=self.cfg.use_jsonl,
@@ -145,6 +200,12 @@ class LDCTRegressionTrainer:
     # ---------------- Model ---------------- #
 
     def load_model(self):
+        """
+        Load the VLM backbone, attach the MOS head, and optionally apply LoRA.
+
+        The regression head is added on top of the pooled final hidden state.
+        When LoRA is enabled, adapter targets are discovered from the backbone.
+        """
         bnb = build_bnb_config(self.cfg.use_4bit, self.cfg.use_8bit, compute_dtype=self.cfg.bnb_compute_dtype)
 
         backbone = AutoModelClass.from_pretrained(
@@ -198,6 +259,12 @@ class LDCTRegressionTrainer:
     # ---------------- Trainer ---------------- #
 
     def build_trainer(self):
+        """
+        Create the HF Trainer with the MOS regression collator and callbacks.
+
+        Raises:
+            ValueError: If model/processor or datasets have not been loaded.
+        """
         if self.model is None or self.processor is None:
             raise ValueError("Call load_model() before build_trainer().")
         if self.train_ds is None or self.val_ds is None:
@@ -224,6 +291,12 @@ class LDCTRegressionTrainer:
         logger.info("HF Trainer built.")
 
     def _training_args(self) -> TrainingArguments:
+        """
+        Build TrainingArguments filtered for the installed transformers version.
+
+        Returns:
+            ``TrainingArguments`` containing only supported keyword arguments.
+        """
         candidates = {
             "output_dir": self.cfg.output_dir,
             "logging_dir": self.cfg.logging_dir,
@@ -255,6 +328,12 @@ class LDCTRegressionTrainer:
         )
 
     def _regression_metadata(self) -> Dict[str, Any]:
+        """
+        Return metadata required to reload the trained regression wrapper.
+
+        Returns:
+            Serializable metadata for ``regression_config.json``.
+        """
         return {
             "base_model_name": self.cfg.model_name,
             "loss_type": self.cfg.loss_type,
@@ -265,6 +344,7 @@ class LDCTRegressionTrainer:
         }
 
     def _save_regression_metadata(self) -> None:
+        """Save final regression metadata beside the trained model artifacts."""
         path = Path(self.cfg.output_dir) / "regression_config.json"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(self._regression_metadata(), indent=2), encoding="utf-8")
@@ -272,6 +352,12 @@ class LDCTRegressionTrainer:
     # ---------------- Run ---------------- #
 
     def run(self):
+        """
+        Run data loading, model setup, training, and final artifact saving.
+
+        Returns:
+            Dictionary containing training loss and trainer metrics.
+        """
         logger.info("=== REGRESSION TRAINING START ===")
         self.load_data()
         self.load_model()

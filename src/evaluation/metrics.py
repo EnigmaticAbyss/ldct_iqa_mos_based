@@ -13,6 +13,13 @@ def _filter_valid_pairs(
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Keep only pairs where prediction is not None.
+
+    Args:
+        y_true: Ground-truth MOS values.
+        y_pred: Predicted MOS values, where ``None`` means parsing failed.
+
+    Returns:
+        Two aligned NumPy arrays containing only valid prediction pairs.
     """
     pairs = [(float(t), float(p)) for t, p in zip(y_true, y_pred) if p is not None]
     if not pairs:
@@ -27,6 +34,13 @@ def compute_basic_errors(
 ) -> Dict[str, float]:
     """
     Compute MAE and RMSE on valid predictions only.
+
+    Args:
+        y_true: Ground-truth MOS values.
+        y_pred: Predicted MOS values, with ``None`` for invalid predictions.
+
+    Returns:
+        Error metrics plus prediction counts and prediction rate.
     """
     yt, yp = _filter_valid_pairs(y_true, y_pred)
     if len(yt) == 0:
@@ -56,6 +70,13 @@ def compute_rank_and_linear_metrics(
 ) -> Dict[str, float]:
     """
     Compute PLCC, SROCC, KROCC on valid predictions only.
+
+    Args:
+        y_true: Ground-truth MOS values.
+        y_pred: Predicted MOS values, with ``None`` for invalid predictions.
+
+    Returns:
+        Pearson, Spearman, and Kendall correlation metrics with p-values.
     """
     yt, yp = _filter_valid_pairs(y_true, y_pred)
 
@@ -89,6 +110,13 @@ def compute_all_metrics(
 ) -> Dict[str, float]:
     """
     Full evaluation summary for MOS prediction.
+
+    Args:
+        y_true: Ground-truth MOS values.
+        y_pred: Predicted MOS values, with ``None`` for invalid predictions.
+
+    Returns:
+        Combined error, coverage, and correlation metrics.
     """
     out = {}
     out.update(compute_basic_errors(y_true, y_pred))

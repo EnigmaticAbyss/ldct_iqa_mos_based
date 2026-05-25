@@ -20,6 +20,15 @@ KEYS = [
 
 
 def load_eval_result(path: str | Path) -> Dict[str, Any]:
+    """
+    Load a model evaluation result JSON file.
+
+    Args:
+        path: Path to an evaluation JSON file.
+
+    Returns:
+        Parsed evaluation payload.
+    """
     path = Path(path)
     with path.open("r", encoding="utf-8") as f:
         data = json.load(f)
@@ -40,6 +49,15 @@ def flatten_metrics(eval_result: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def build_comparison_rows(models):
+    """
+    Build one flattened metric row for each configured model result.
+
+    Args:
+        models: Iterable of model entries with ``name`` and ``path`` keys.
+
+    Returns:
+        List of comparison rows containing model metadata and selected metrics.
+    """
     rows = []
 
     for m in models:
@@ -57,6 +75,13 @@ def build_comparison_rows(models):
 
 
 def save_comparison_json(rows: List[Dict[str, Any]], out_path: str | Path):
+    """
+    Write comparison rows to a JSON file.
+
+    Args:
+        rows: Ranked or unranked comparison rows.
+        out_path: Destination JSON path.
+    """
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", encoding="utf-8") as f:
@@ -64,6 +89,13 @@ def save_comparison_json(rows: List[Dict[str, Any]], out_path: str | Path):
 
 
 def save_comparison_csv(rows: List[Dict[str, Any]], out_path: str | Path):
+    """
+    Write comparison rows to a CSV file with stable metric columns.
+
+    Args:
+        rows: Ranked or unranked comparison rows.
+        out_path: Destination CSV path.
+    """
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -88,7 +120,26 @@ def rank_models(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
       4) mae asc
     """
     def key_fn(r: Dict[str, Any]):
+        """
+        Build the ranking tuple for one model row.
+
+        Args:
+            r: Comparison row.
+
+        Returns:
+            Sort key prioritizing correlations before error metrics.
+        """
         def safe(v, default):
+            """
+            Replace missing metric values with sortable defaults.
+
+            Args:
+                v: Metric value.
+                default: Replacement used when ``v`` is ``None``.
+
+            Returns:
+                Original value or default fallback.
+            """
             return default if v is None else v
 
         return (
@@ -102,6 +153,16 @@ def rank_models(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 
 def compare_models(models: List[Dict[str, str]], out_dir: str | Path) -> Dict[str, Any]:
+    """
+    Rank model evaluation files and save JSON/CSV comparison artifacts.
+
+    Args:
+        models: Model entries with display names and evaluation-result paths.
+        out_dir: Directory where comparison artifacts should be written.
+
+    Returns:
+        Summary containing the best model, ranked rows, and artifact paths.
+    """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 

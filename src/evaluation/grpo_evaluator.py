@@ -4,6 +4,11 @@ from src.evaluation.generative_mos_evaluator import GenerativeMOSEvaluator
 
 
 class GRPOEvaluator(GenerativeMOSEvaluator):
-    """Evaluates GRPO-refined generative MOS models."""
+    """
+    Evaluates GRPO-refined generative MOS models.
+
+    This subclass only changes the evaluator name used in result metadata while
+    reusing the shared generative MOS evaluation pipeline.
+    """
 
     evaluator_name = "grpo"

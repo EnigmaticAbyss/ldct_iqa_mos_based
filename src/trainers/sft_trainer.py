@@ -35,6 +35,16 @@ logger = logging.getLogger("sft_trainer")
 
 @dataclass
 class SFTTrainConfig:
+    """
+    Configuration values for TRL supervised fine-tuning.
+
+    Attributes:
+        model_name: Base VLM checkpoint or model identifier.
+        data_dir: Root directory for base datasets when prebuilt SFT data is not used.
+        output_dir: Directory where checkpoints and final model artifacts are saved.
+        lora_enabled: Whether to attach LoRA adapters instead of full fine-tuning.
+    """
+
     model_name: str
 
     # NEW: prebuilt Arrow datasets
@@ -93,7 +103,20 @@ class SFTTrainConfig:
 
 
 class LDCTSFTTrainer:
+    """
+    Orchestrates LDCT MOS supervised fine-tuning with TRL SFTTrainer.
+
+    The trainer loads or builds chat-format datasets, prepares the VLM and
+    optional LoRA adapters, constructs the TRL trainer, and saves final artifacts.
+    """
+
     def __init__(self, config_dict: Dict[str, Any]):
+        """
+        Build trainer state from a raw configuration dictionary.
+
+        Args:
+            config_dict: JSON-compatible configuration values for ``SFTTrainConfig``.
+        """
         self.cfg = SFTTrainConfig(**config_dict)
 
         setup_logging(self.cfg.logging_dir, log_name="sft.log")
@@ -110,6 +133,16 @@ class LDCTSFTTrainer:
     # ---------------- Data ---------------- #
 
     def load_data(self):
+        """
+        Load or build TRL-formatted SFT train/validation datasets.
+
+        Prebuilt SFT datasets are loaded directly from disk. Otherwise, base
+        MOS rows are loaded through ``DatasetLoader`` and mapped into chat-format
+        SFT examples.
+
+        Raises:
+            ValueError: If prebuilt mode is enabled without both dataset paths.
+        """
         if self.cfg.load_prebuilt_sft_dataset:
             if not self.cfg.train_dataset_dir or not self.cfg.val_dataset_dir:
                 raise ValueError("load_prebuilt_sft_dataset=true requires train_dataset_dir and val_dataset_dir")
@@ -150,6 +183,12 @@ class LDCTSFTTrainer:
     # ---------------- Model ---------------- #
 
     def load_model(self):
+        """
+        Load the base VLM, processor, and optional LoRA adapters.
+
+        The method also ensures a pad token exists when the tokenizer can reuse
+        its EOS token.
+        """
         bnb = build_bnb_config(self.cfg.use_4bit, self.cfg.use_8bit, compute_dtype=self.cfg.bnb_compute_dtype)
 
         model = AutoModelClass.from_pretrained(
@@ -194,6 +233,12 @@ class LDCTSFTTrainer:
     # ---------------- Trainer ---------------- #
 
     def build_trainer(self):
+        """
+        Create the TRL SFTTrainer with the multimodal collator.
+
+        Raises:
+            ValueError: If model/processor or datasets have not been loaded.
+        """
         if self.model is None or self.processor is None:
             raise ValueError("Call load_model() before build_trainer().")
         if self.train_ds is None or self.val_ds is None:
@@ -223,6 +268,13 @@ class LDCTSFTTrainer:
         logger.info("TRL SFTTrainer built.")
 
     def _sft_args(self) -> SFTConfig:
+        """
+        Build an SFTConfig filtered for the installed TRL version.
+
+        Returns:
+            ``SFTConfig`` containing only keyword arguments supported by the
+            installed TRL package.
+        """
         candidates: Dict[str, Any] = {
             "output_dir": self.cfg.output_dir,
             "logging_dir": self.cfg.logging_dir,
@@ -265,6 +317,12 @@ class LDCTSFTTrainer:
     # ---------------- Run ---------------- #
 
     def run(self):
+        """
+        Run data loading, model setup, training, and final artifact saving.
+
+        Returns:
+            Dictionary containing training loss and trainer metrics.
+        """
         logger.info("=== TRL SFT TRAINING START ===")
         self.load_data()
         self.load_model()

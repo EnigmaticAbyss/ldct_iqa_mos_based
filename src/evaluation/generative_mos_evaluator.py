@@ -50,6 +50,7 @@ class GenerativeMOSEvaluator:
         test_json_path: Optional[str] = None,
         test_jsonl_path: Optional[str] = None,
     ):
+        """Store model, dataset, prompt, and output settings for evaluation."""
         self.model_dir = str(model_dir)
         self.base_model_name = base_model_name
         self.is_peft_adapter = is_peft_adapter
@@ -70,6 +71,17 @@ class GenerativeMOSEvaluator:
         self.processor: AutoProcessor | None = None
 
     def load_model(self):
+        """
+        Load the generative VLM and processor.
+
+        The method supports both plain model directories and PEFT/LoRA adapter
+        directories. Adapter evaluation requires ``base_model_name`` so the base
+        VLM can be restored before the adapter is attached.
+
+        Raises:
+            ValueError: If an adapter directory is detected without adapter mode,
+                or adapter mode is enabled without a base model name.
+        """
         logger.info(f"Loading {self.evaluator_name} evaluator model from: {self.model_dir}")
 
         bnb_config = BitsAndBytesConfig(
@@ -140,6 +152,16 @@ class GenerativeMOSEvaluator:
         logger.info("Model + processor loaded.")
 
     def load_dataset(self) -> Dataset:
+        """
+        Load and validate the configured test dataset.
+
+        Returns:
+            Test dataset containing ``image_path`` and ``mos_score`` columns.
+
+        Raises:
+            ValueError: If required columns are missing.
+            FileNotFoundError: If the configured dataset path is missing.
+        """
         loader = DatasetLoader(
             data_dir=self.data_dir,
             use_jsonl=self.use_jsonl,
@@ -159,6 +181,16 @@ class GenerativeMOSEvaluator:
         return test_ds
 
     def generate_predictions(self, dataset: Dataset):
+        """
+        Generate text responses for each image and parse MOS predictions.
+
+        Args:
+            dataset: Test dataset containing image paths and MOS labels.
+
+        Returns:
+            A tuple ``(predictions, raw_outputs)`` where predictions contain
+            parsed MOS floats or ``None`` and raw outputs contain generated text.
+        """
         predictions: List[Optional[float]] = []
         raw_outputs: List[str] = []
 
@@ -225,6 +257,13 @@ class GenerativeMOSEvaluator:
         return predictions, raw_outputs
 
     def run(self) -> Dict:
+        """
+        Execute the full generative MOS evaluation pipeline.
+
+        Returns:
+            Evaluation summary with metrics, sample count, parse failures, and
+            evaluator name. Prediction CSV and plots are written to ``output_dir``.
+        """
         self.load_model()
         test_ds = self.load_dataset()
 
@@ -259,6 +298,13 @@ class GenerativeMOSEvaluator:
         }
 
     def save_results(self, results: Dict, output_path: str):
+        """
+        Persist final evaluation metrics to a JSON file.
+
+        Args:
+            results: Evaluation summary returned by ``run``.
+            output_path: Destination JSON path.
+        """
         path = Path(output_path)
         path.parent.mkdir(parents=True, exist_ok=True)
 

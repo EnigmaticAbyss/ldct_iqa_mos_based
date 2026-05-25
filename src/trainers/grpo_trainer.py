@@ -37,6 +37,17 @@ logger = logging.getLogger("grpo_trainer")
 
 @dataclass
 class GRPOTrainConfig:
+    """
+    Configuration values for TRL GRPO fine-tuning.
+
+    Attributes:
+        model_name: Base VLM checkpoint, model identifier, or adapter path.
+        base_model_name: Base model used when ``model_name`` points to an adapter.
+        output_dir: Directory where checkpoints and final artifacts are saved.
+        reward_kind: Reward shaping strategy for MOS prediction error.
+        lora_enabled: Whether to attach LoRA adapters for GRPO training.
+    """
+
     model_name: str
     base_model_name: Optional[str] = None
     adapter_model_dir: Optional[str] = None
@@ -136,7 +147,20 @@ class GRPOTrainConfig:
 
 
 class LDCTGRPOTrainer:
+    """
+    Orchestrates LDCT MOS reinforcement fine-tuning with TRL GRPOTrainer.
+
+    The trainer converts MOS datasets into GRPO prompts, builds a reward
+    function from MOS parsing/error, prepares model/adapters, and runs TRL GRPO.
+    """
+
     def __init__(self, config_dict: Dict[str, Any]):
+        """
+        Build trainer state from a raw configuration dictionary.
+
+        Args:
+            config_dict: JSON-compatible configuration values for ``GRPOTrainConfig``.
+        """
         self.cfg = GRPOTrainConfig(**config_dict)
 
         setup_logging(self.cfg.logging_dir, log_name="grpo.log")
@@ -155,12 +179,27 @@ class LDCTGRPOTrainer:
 
     @staticmethod
     def _first_path(*values: Optional[str]) -> Optional[str]:
+        """
+        Return the first non-empty path value from a list of aliases.
+
+        Args:
+            *values: Path-like config aliases in priority order.
+
+        Returns:
+            First truthy value, or ``None`` when all values are empty.
+        """
         for value in values:
             if value:
                 return value
         return None
 
     def _dataset_format(self) -> str:
+        """
+        Resolve the dataset format from legacy flags and explicit config.
+
+        Returns:
+            Dataset format string accepted by ``DatasetLoader``.
+        """
         if self.cfg.load_prebuilt_sft_dataset is True:
             return "arrow"
         if self.cfg.load_prebuilt_sft_dataset is False and self.cfg.use_jsonl:
@@ -168,6 +207,13 @@ class LDCTGRPOTrainer:
         return self.cfg.dataset_format
 
     def load_data(self):
+        """
+        Load base data and convert it into GRPO prompt rows.
+
+        Raises:
+            ValueError: If required base or GRPO columns are missing.
+            FileNotFoundError: If the configured dataset files/directories are missing.
+        """
         loader = DatasetLoader(
             data_dir=self.cfg.data_dir,
             use_jsonl=self.cfg.use_jsonl,
@@ -204,6 +250,19 @@ class LDCTGRPOTrainer:
 
     @staticmethod
     def _resolve_torch_dtype(name: Optional[str]):
+        """
+        Convert a config dtype name into a Torch dtype or special value.
+
+        Args:
+            name: Configured dtype name such as ``bf16``, ``fp16``, ``fp32``,
+                ``auto``, or ``none``.
+
+        Returns:
+            Torch dtype, ``"auto"``, or ``None``.
+
+        Raises:
+            ValueError: If the dtype name is unsupported.
+        """
         if name is None:
             return None
         value = name.strip().lower()
@@ -219,6 +278,15 @@ class LDCTGRPOTrainer:
 
     @staticmethod
     def _as_token_id(value: Any) -> Optional[int]:
+        """
+        Coerce a tokenizer/config value to a non-negative token id.
+
+        Args:
+            value: Candidate token id value.
+
+        Returns:
+            Non-negative integer token id, or ``None`` when conversion fails.
+        """
         if isinstance(value, bool) or value is None:
             return None
         try:
@@ -229,6 +297,7 @@ class LDCTGRPOTrainer:
 
     @staticmethod
     def _config_objects(model: Any) -> list[Any]:
+        """Collect model config objects that may expose image-token metadata."""
         objects: list[Any] = []
         config = getattr(model, "config", None)
         if config is not None:
@@ -246,6 +315,7 @@ class LDCTGRPOTrainer:
 
     @staticmethod
     def _tokenizer_objects(processor: Any) -> list[Any]:
+        """Collect processor/tokenizer objects that may expose image-token metadata."""
         objects = [processor]
         tokenizer = getattr(processor, "tokenizer", None)
         if tokenizer is not None and tokenizer is not processor:
@@ -254,6 +324,16 @@ class LDCTGRPOTrainer:
 
     @classmethod
     def _collect_image_token_ids(cls, processor: Any, model: Any) -> list[int]:
+        """
+        Find token ids for image placeholders so generation can suppress them.
+
+        Args:
+            processor: Processor or tokenizer used for chat templating.
+            model: Model whose config may expose image-token metadata.
+
+        Returns:
+            Sorted list of unique image placeholder token ids.
+        """
         token_ids: set[int] = set()
         objects = cls._tokenizer_objects(processor) + cls._config_objects(model)
 
@@ -289,6 +369,16 @@ class LDCTGRPOTrainer:
 
     @staticmethod
     def _merge_bad_words_ids(existing: Any, token_ids: list[int]) -> list[list[int]]:
+        """
+        Merge existing bad-word token groups with single-token ids.
+
+        Args:
+            existing: Existing ``bad_words_ids`` value from generation kwargs.
+            token_ids: Additional single-token ids to suppress.
+
+        Returns:
+            Deduplicated ``bad_words_ids`` list.
+        """
         merged: list[list[int]] = []
         seen: set[tuple[int, ...]] = set()
 
@@ -310,6 +400,16 @@ class LDCTGRPOTrainer:
         return merged
 
     def _build_generation_kwargs(self, processor: Any, model: Any) -> Optional[dict]:
+        """
+        Build generation kwargs that prevent image placeholder leakage.
+
+        Args:
+            processor: Processor used by GRPOTrainer.
+            model: Model used by GRPOTrainer.
+
+        Returns:
+            Generation kwargs dict, or ``None`` if no custom kwargs are needed.
+        """
         generation_kwargs = dict(self.cfg.generation_kwargs or {})
         image_token_ids = self._collect_image_token_ids(processor, model)
         if image_token_ids:
@@ -327,6 +427,13 @@ class LDCTGRPOTrainer:
         return generation_kwargs or None
 
     def load_model(self):
+        """
+        Load the base or adapter model, processor, and optional LoRA setup.
+
+        Raises:
+            ValueError: If ``model_name`` points to an adapter but no base model
+                is configured.
+        """
         adapter_model_dir = self.cfg.adapter_model_dir
         model_name = self.cfg.base_model_name or self.cfg.model_name
         if adapter_model_dir is None and (Path(self.cfg.model_name) / "adapter_config.json").exists():
@@ -407,6 +514,13 @@ class LDCTGRPOTrainer:
     # ---------------- Trainer ---------------- #
 
     def _grpo_args(self) -> GRPOConfig:
+        """
+        Build a GRPOConfig filtered for the installed TRL version.
+
+        Returns:
+            ``GRPOConfig`` containing only keyword arguments supported by the
+            installed TRL package.
+        """
         candidates: Dict[str, Any] = {
             "output_dir": self.cfg.output_dir,
             "logging_dir": self.cfg.logging_dir,
@@ -471,6 +585,12 @@ class LDCTGRPOTrainer:
         return GRPOConfig(**filtered)
 
     def build_trainer(self):
+        """
+        Create the GRPOTrainer with MOS reward scoring and processor callback.
+
+        Raises:
+            ValueError: If model/processor or datasets have not been loaded.
+        """
         if self.model is None or self.processor is None:
             raise ValueError("Call load_model() before build_trainer().")
         if self.train_ds is None or self.val_ds is None:
@@ -507,6 +627,12 @@ class LDCTGRPOTrainer:
     # ---------------- Run ---------------- #
 
     def run(self):
+        """
+        Run data loading, model setup, GRPO training, and artifact saving.
+
+        Returns:
+            Dictionary containing training loss and trainer metrics.
+        """
         logger.info("=== TRL GRPO TRAINING START ===")
         self.load_data()
         self.load_model()

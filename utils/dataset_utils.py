@@ -30,6 +30,12 @@ class ProcessedDatasetLoader:
     """
 
     def __init__(self, data_dir: str | Path):
+        """
+        Resolve the expected processed dataset paths under ``data_dir``.
+
+        Args:
+            data_dir: Root directory containing processed HF datasets or JSONL files.
+        """
         self.data_dir = Path(data_dir)
 
         # HF save_to_disk directories
@@ -47,12 +53,30 @@ class ProcessedDatasetLoader:
     # -------------------------------------------------
 
     def load_train(self) -> Dataset:
+        """
+        Load the processed training split from disk.
+
+        Returns:
+            Hugging Face dataset stored in ``train_dataset``.
+        """
         return load_from_disk(str(self.train_dir))
 
     def load_val(self) -> Dataset:
+        """
+        Load the processed validation split from disk.
+
+        Returns:
+            Hugging Face dataset stored in ``val_dataset``.
+        """
         return load_from_disk(str(self.val_dir))
 
     def load_test(self) -> Dataset:
+        """
+        Load the processed test split from disk.
+
+        Returns:
+            Hugging Face dataset stored in ``test_dataset``.
+        """
         return load_from_disk(str(self.test_dir))
 
     # -------------------------------------------------
@@ -60,6 +84,12 @@ class ProcessedDatasetLoader:
     # -------------------------------------------------
 
     def validate_hf(self) -> bool:
+        """
+        Check whether required Hugging Face dataset directories exist.
+
+        Returns:
+            ``True`` when required train and validation directories exist.
+        """
         ok = True
 
         if not self.train_dir.exists():
@@ -74,6 +104,12 @@ class ProcessedDatasetLoader:
         return ok
 
     def validate_jsonl(self) -> bool:
+        """
+        Check whether required JSONL dataset files exist.
+
+        Returns:
+            ``True`` when required train and validation JSONL files exist.
+        """
         ok = True
 
         if not self.train_jsonl.exists():
@@ -93,6 +129,17 @@ class ProcessedDatasetLoader:
 
     @staticmethod
     def require_columns(ds: Dataset, required: list[str], name: str = "dataset") -> None:
+        """
+        Validate that a dataset contains required columns.
+
+        Args:
+            ds: Dataset to inspect.
+            required: Column names that must be present.
+            name: Human-readable dataset name used in error messages.
+
+        Raises:
+            ValueError: If any required column is missing.
+        """
         cols = set(ds.column_names)
         missing = [c for c in required if c not in cols]
         if missing:

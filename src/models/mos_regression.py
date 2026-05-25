@@ -40,6 +40,16 @@ def infer_hidden_size(backbone) -> int:
 
 @dataclass
 class RegressionSettings:
+    """
+    Configuration values for MOS regression loss and prediction range.
+
+    Attributes:
+        loss_type: Regression loss name, either ``mse`` or ``huber``.
+        huber_delta: Delta parameter used by Huber loss.
+        mos_min: Minimum allowed MOS prediction.
+        mos_max: Maximum allowed MOS prediction.
+    """
+
     loss_type: str = "mse"     # "mse" | "huber"
     huber_delta: float = 0.5
     mos_min: float = 0.0
@@ -49,8 +59,12 @@ class RegressionSettings:
 class MOSHead(nn.Module):
     """
     Simple regression head: hidden -> hidden/2 -> 1
+
+    Args:
+        hidden_size: Size of the pooled backbone hidden state.
     """
     def __init__(self, hidden_size: int):
+        """Create the two-layer projection from backbone hidden states to MOS."""
         super().__init__()
         mid = max(64, hidden_size // 2)
         self.net = nn.Sequential(
@@ -60,6 +74,15 @@ class MOSHead(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Predict one scalar MOS value per pooled hidden state.
+
+        Args:
+            x: Pooled hidden states with shape ``(batch, hidden_size)``.
+
+        Returns:
+            MOS logits with shape ``(batch,)``.
+        """
         return self.net(x).squeeze(-1)  # (B,)
 
 
@@ -85,6 +108,7 @@ class VLMForMOSRegression(nn.Module):
         mos_max: float = 4.0,
         base_model_name: Optional[str] = None,
     ):
+        """Attach a regression head to a pretrained VLM backbone."""
         super().__init__()
         self.backbone = backbone
         self.head = MOSHead(hidden_size)
@@ -121,6 +145,19 @@ class VLMForMOSRegression(nn.Module):
         return hidden_states[b, lengths, :]  # (B, H)
 
     def forward(self, **batch):
+        """
+        Run the backbone, pool hidden states, and optionally compute loss.
+
+        Args:
+            **batch: Processor tensors accepted by the backbone, plus optional
+                float ``labels`` containing MOS targets.
+
+        Returns:
+            Dictionary containing ``mos_pred`` and, when labels are present, ``loss``.
+
+        Raises:
+            ValueError: If ``loss_type`` is not supported.
+        """
         labels = batch.pop("labels", None)
         batch.setdefault("output_hidden_states", True)
 
@@ -150,6 +187,12 @@ class VLMForMOSRegression(nn.Module):
         return out
 
     def regression_config(self) -> dict:
+        """
+        Return serializable metadata needed to reload the regression wrapper.
+
+        Returns:
+            Dictionary containing base model, loss, and MOS range settings.
+        """
         return {
             "base_model_name": self.base_model_name,
             "loss_type": self.loss_type,
@@ -159,6 +202,13 @@ class VLMForMOSRegression(nn.Module):
         }
 
     def save_pretrained(self, save_directory: str | Path, **kwargs) -> None:
+        """
+        Save regression metadata and weights using a HF-style directory layout.
+
+        Args:
+            save_directory: Directory where config and weights should be written.
+            **kwargs: Accepted for Hugging Face API compatibility; unused.
+        """
         save_dir = Path(save_directory)
         save_dir.mkdir(parents=True, exist_ok=True)
 
@@ -170,6 +220,7 @@ class VLMForMOSRegression(nn.Module):
 
     @staticmethod
     def _load_regression_config(model_dir: Path) -> dict:
+        """Read regression metadata from a model directory when present."""
         config_path = model_dir / REGRESSION_CONFIG_NAME
         if not config_path.exists():
             return {}
@@ -177,6 +228,7 @@ class VLMForMOSRegression(nn.Module):
 
     @staticmethod
     def _load_state_dict(model_dir: Path) -> Optional[dict]:
+        """Load regression weights from PyTorch or safetensors files if available."""
         weights_path = model_dir / REGRESSION_WEIGHTS_NAME
         if weights_path.exists():
             return torch.load(weights_path, map_location="cpu")
@@ -201,6 +253,24 @@ class VLMForMOSRegression(nn.Module):
         trust_remote_code: bool = True,
         **model_kwargs,
     ):
+        """
+        Load a regression wrapper from full weights or a PEFT adapter directory.
+
+        Args:
+            model_dir: Directory containing regression weights, metadata, or adapter files.
+            base_model_name: Optional base model override used for adapter loading.
+            is_peft_adapter: Whether ``model_dir`` should be treated as a PEFT adapter.
+            device_map: Device map forwarded to the backbone loader.
+            quantization_config: Optional bitsandbytes quantization config.
+            trust_remote_code: Whether to allow custom Hugging Face model code.
+            **model_kwargs: Extra keyword arguments forwarded to ``from_pretrained``.
+
+        Returns:
+            A ``VLMForMOSRegression`` instance or PEFT-wrapped regression model.
+
+        Raises:
+            ValueError: If an adapter is loaded without a known base model.
+        """
         model_dir = Path(model_dir)
         cfg = cls._load_regression_config(model_dir)
         adapter_config = model_dir / "adapter_config.json"

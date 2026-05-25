@@ -9,10 +9,25 @@ from src.evaluation.compare import compare_models
 
 
 def load_json(path: Path) -> dict:
+    """
+    Read a JSON model-comparison configuration file from disk.
+
+    Args:
+        path: Comparison config path.
+
+    Returns:
+        Parsed JSON dictionary.
+    """
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def main():
+    """
+    Compare configured model evaluation outputs and print the summary.
+
+    Raises:
+        ValueError: If the config does not define at least one model entry.
+    """
     ap = argparse.ArgumentParser(description="Compare multiple evaluated models")
     ap.add_argument("--config", type=Path, required=True, help="Path to compare config JSON")
     args = ap.parse_args()

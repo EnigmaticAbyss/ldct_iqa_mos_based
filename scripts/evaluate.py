@@ -7,10 +7,25 @@ from pathlib import Path
 
 
 def load_json(path: Path) -> dict:
+    """
+    Read a JSON evaluation configuration file from disk.
+
+    Args:
+        path: Evaluation config path.
+
+    Returns:
+        Parsed JSON dictionary.
+    """
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def main():
+    """
+    Dispatch evaluation to the configured regression, SFT, or GRPO evaluator.
+
+    Raises:
+        ValueError: If the evaluation mode is missing or unsupported.
+    """
     ap = argparse.ArgumentParser(description="LDCT IQA evaluation entrypoint")
     ap.add_argument("--config", type=Path, required=True, help="Path to eval config JSON")
     args = ap.parse_args()

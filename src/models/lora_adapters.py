@@ -127,6 +127,20 @@ def build_lora_config_from_settings(
 ) -> LoraConfig:
     """
     Create PEFT LoraConfig.
+
+    Args:
+        task_type: PEFT task type, such as ``CAUSAL_LM`` or ``FEATURE_EXTRACTION``.
+        r: LoRA rank.
+        alpha: LoRA scaling factor.
+        dropout: LoRA dropout probability.
+        target_modules: Leaf module names that should receive adapters.
+        modules_to_save: Extra non-LoRA modules to save with the adapter.
+
+    Returns:
+        A configured ``peft.LoraConfig``.
+
+    Raises:
+        ValueError: If no target modules are supplied.
     """
     if not target_modules:
         raise ValueError("target_modules is empty. LoRA would attach to nothing.")

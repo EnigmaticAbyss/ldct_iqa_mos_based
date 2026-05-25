@@ -34,6 +34,15 @@ except Exception:
 
 # ---------------------------- Logging ----------------------------
 def setup_logger(log_path: Path) -> logging.Logger:
+    """
+    Create a logger for the dataset-building script.
+
+    Args:
+        log_path: File path where the run log should be written.
+
+    Returns:
+        Configured logger that writes to both file and stderr.
+    """
     log_path.parent.mkdir(parents=True, exist_ok=True)
     logger = logging.getLogger("step2_build_trl_dataset")
     logger.setLevel(logging.INFO)
@@ -51,6 +60,16 @@ def setup_logger(log_path: Path) -> logging.Logger:
 # ------------------------ Config structures ----------------------
 @dataclass
 class SubsetCfg:
+    """
+    Configuration for one named image/MOS subset.
+
+    Attributes:
+        name: Split or subset name.
+        images_dir: Directory containing source images.
+        mos_json: JSON file containing MOS labels.
+        out_jsonl: Destination JSONL path for built rows.
+    """
+
     name: str
     images_dir: Path
     mos_json: Path
@@ -58,12 +77,31 @@ class SubsetCfg:
 
 @dataclass
 class GroupingCfg:
+    """
+    Configuration for grouping related image slices before splitting.
+
+    Attributes:
+        mode: Grouping strategy: ``none``, ``regex``, or ``prefix``.
+        regex: Regular expression used when ``mode`` is ``regex``.
+        prefix_len: Prefix length used when ``mode`` is ``prefix``.
+    """
+
     mode: str           # "none", "regex", "prefix"
     regex: str = "^(.*?)[_.-]\\d+$"
     prefix_len: int = 0
 
 @dataclass
 class ValSplitCfg:
+    """
+    Configuration for deriving a validation set from another subset.
+
+    Attributes:
+        from_subset: Name of the subset used as the train/validation pool.
+        val_ratio: Target validation fraction.
+        grouping: Grouping settings used before splitting.
+        stratify_by_category: Whether to approximate quality-category balance.
+    """
+
     from_subset: str
     val_ratio: float
     grouping: GroupingCfg
@@ -71,6 +109,17 @@ class ValSplitCfg:
 
 @dataclass
 class BuildCfg:
+    """
+    Top-level configuration for building TRL-ready datasets.
+
+    Attributes:
+        subsets: Subsets to convert.
+        system_prompt: System prompt inserted into chat rows.
+        assistant_template: Template for assistant answers.
+        output_hf_dataset: Whether to save Hugging Face datasets.
+        data_io_mode: Whether rows reference PNG paths or load TIFFs directly.
+    """
+
     subsets: List[SubsetCfg]
     system_prompt: str
     assistant_template: str
@@ -94,6 +143,15 @@ QUALITY_BINS: List[Tuple[str, float, float, bool]] = [
     ("Excellent", 3.8, 4.01, True),
 ]
 def mos_to_category(m: float) -> str:
+    """
+    Map a MOS value to a coarse quality category.
+
+    Args:
+        m: Mean opinion score.
+
+    Returns:
+        Quality category name, or ``"Unknown"`` if the score is out of range.
+    """
     for name, lo, hi, inclusive_hi in QUALITY_BINS:
         if (m >= lo) and ((m < hi) or (inclusive_hi and m <= hi)):
             return name
@@ -129,12 +187,45 @@ REASONING_TEMPLATES = {
     ],
 }
 def gen_user_prompt(i: int) -> str:
+    """
+    Select a deterministic user prompt variant by index.
+
+    Args:
+        i: Sample index.
+
+    Returns:
+        Prompt text selected from ``USER_PROMPTS``.
+    """
     return USER_PROMPTS[i % len(USER_PROMPTS)]
+
+
 def gen_reasoning(category: str, mos: float) -> str:
+    """
+    Create deterministic synthetic reasoning text for a MOS/category pair.
+
+    Args:
+        category: Quality category derived from MOS.
+        mos: Mean opinion score.
+
+    Returns:
+        Reasoning text containing the MOS value.
+    """
     bank = REASONING_TEMPLATES.get(category, REASONING_TEMPLATES["Good"])
     txt = bank[hash((category, round(mos, 2))) % len(bank)]
     return f"{txt} Based on the technical assessment, this image receives a quality score of {mos:.1f} out of 4.0."
+
+
 def gen_explanation(category: str, mos: float) -> str:
+    """
+    Create a concise assistant explanation for the target MOS category.
+
+    Args:
+        category: Quality category derived from MOS.
+        mos: Mean opinion score.
+
+    Returns:
+        Short explanation text.
+    """
     brief = {
         "Poor":      "Image quality is poor with significant noise/contrast issues.",
         "Fair":      "Image quality is fair with moderate limitations.",
@@ -146,6 +237,15 @@ def gen_explanation(category: str, mos: float) -> str:
 
 # ---------------- Normalization helpers (for tif_direct) --------
 def load_tif_as_float(path: Path) -> np.ndarray:
+    """
+    Load a TIFF image as a float32 grayscale array.
+
+    Args:
+        path: TIFF image path.
+
+    Returns:
+        Grayscale image array as ``float32``.
+    """
     im = Image.open(path)
     arr = np.asarray(im, dtype=np.float32)
     if arr.ndim == 3:  # RGB or multi-channel → grayscale
@@ -153,6 +253,17 @@ def load_tif_as_float(path: Path) -> np.ndarray:
     return arr
 
 def norm_percentile(arr: np.ndarray, p_low: float, p_high: float) -> np.ndarray:
+    """
+    Normalize an array to 0-1 using percentile clipping.
+
+    Args:
+        arr: Input image array.
+        p_low: Lower percentile used for clipping.
+        p_high: Upper percentile used for clipping.
+
+    Returns:
+        Float array scaled to the 0-1 range.
+    """
     lo = float(np.percentile(arr, p_low))
     hi = float(np.percentile(arr, p_high))
     if hi <= lo:
@@ -163,11 +274,31 @@ def norm_percentile(arr: np.ndarray, p_low: float, p_high: float) -> np.ndarray:
     return (arr - lo) / (hi - lo + 1e-8)
 
 def norm_wlww(arr: np.ndarray, wl: float, ww: float) -> np.ndarray:
+    """
+    Normalize an array to 0-1 using CT window level and width.
+
+    Args:
+        arr: Input image array.
+        wl: Window level.
+        ww: Window width.
+
+    Returns:
+        Float array scaled to the 0-1 range.
+    """
     lo, hi = wl - ww / 2.0, wl + ww / 2.0
     arr = np.clip(arr, lo, hi)
     return (arr - lo) / (hi - lo + 1e-8)
 
 def norm_linear_max(arr: np.ndarray) -> np.ndarray:
+    """
+    Normalize an array to 0-1 by its positive maximum value.
+
+    Args:
+        arr: Input image array.
+
+    Returns:
+        Float array scaled by its maximum, or zeros if the maximum is invalid.
+    """
     mx = float(np.max(arr))
     if not np.isfinite(mx) or mx <= 0:
         return np.zeros_like(arr, dtype=np.float32)
@@ -180,6 +311,20 @@ def load_and_normalize_image(path: Path,
                              p_high: float,
                              wl: float,
                              ww: float) -> Image.Image:
+    """
+    Load a TIFF, normalize it according to config, and return an RGB image.
+
+    Args:
+        path: TIFF image path.
+        norm_mode: Normalization mode: ``percentile``, ``wlww``, or ``linear_max``.
+        p_low: Lower percentile for percentile normalization.
+        p_high: Upper percentile for percentile normalization.
+        wl: Window level for ``wlww`` normalization.
+        ww: Window width for ``wlww`` normalization.
+
+    Returns:
+        RGB PIL image converted from normalized uint8 pixels.
+    """
     arr = load_tif_as_float(path)
     if norm_mode == "percentile":
         arr01 = norm_percentile(arr, p_low, p_high)
@@ -192,14 +337,41 @@ def load_and_normalize_image(path: Path,
 
 # --------------------- IO utilities ------------------------------
 def load_mos(mos_json: Path) -> Dict[str, float]:
+    """
+    Load MOS labels keyed by normalized filename stem.
+
+    Args:
+        mos_json: JSON file mapping filenames to MOS values.
+
+    Returns:
+        Mapping from lowercase filename stems to MOS floats.
+    """
     data = json.loads(mos_json.read_text(encoding="utf-8"))
     return {Path(k).stem.lower(): float(v) for k, v in data.items()}
 
 def list_pngs(images_dir: Path) -> Dict[str, Path]:
+    """
+    Return PNG image paths keyed by normalized stem.
+
+    Args:
+        images_dir: Directory containing PNG files.
+
+    Returns:
+        Mapping from lowercase filename stems to PNG paths.
+    """
     images_dir = images_dir.resolve()
     return {p.stem.lower(): p for p in images_dir.glob("*.png")}
 
 def glob_tiffs(images_dir: Path) -> Dict[str, Path]:
+    """
+    Return TIFF image paths keyed by normalized stem.
+
+    Args:
+        images_dir: Directory containing TIFF files.
+
+    Returns:
+        Mapping from lowercase filename stems to TIFF paths.
+    """
     images_dir = images_dir.resolve()
     pats = ["*.tif", "*.TIF", "*.tiff", "*.TIFF"]
     paths = []
@@ -219,6 +391,19 @@ def build_records_png_paths(images_dir: Path,
                             system_prompt: str,
                             assistant_template: str,
                             logger: logging.Logger) -> List[Dict[str, Any]]:
+    """
+    Build TRL chat rows that reference existing PNG files by path.
+
+    Args:
+        images_dir: Directory containing PNG files.
+        mos_json: JSON file mapping filenames to MOS values.
+        system_prompt: System prompt inserted into each chat example.
+        assistant_template: Template for the assistant answer.
+        logger: Logger used for warnings.
+
+    Returns:
+        List of TRL-style dataset rows.
+    """
     mos_map = load_mos(mos_json)
     png_map = list_pngs(images_dir)
 
@@ -258,6 +443,19 @@ def build_records_tif_direct(images_dir: Path,
                              system_prompt: str,
                              assistant_template: str,
                              logger: logging.Logger) -> List[Dict[str, Any]]:
+    """
+    Build TRL chat rows that reference original TIFF files by path.
+
+    Args:
+        images_dir: Directory containing TIFF files.
+        mos_json: JSON file mapping filenames to MOS values.
+        system_prompt: System prompt inserted into each chat example.
+        assistant_template: Template for the assistant answer.
+        logger: Logger used for warnings.
+
+    Returns:
+        List of TRL-style dataset rows.
+    """
     mos_map = load_mos(mos_json)
     tif_map = glob_tiffs(images_dir)
 
@@ -294,6 +492,14 @@ def build_records_tif_direct(images_dir: Path,
     return rows
 
 def write_jsonl(out_jsonl: Path, rows: List[Dict[str, Any]], logger: logging.Logger):
+    """
+    Write dataset rows to a JSONL file and log the count.
+
+    Args:
+        out_jsonl: Destination JSONL path.
+        rows: Dataset rows to serialize.
+        logger: Logger used for the write summary.
+    """
     out_jsonl.parent.mkdir(parents=True, exist_ok=True)
     with out_jsonl.open("w", encoding="utf-8") as f:
         for r in rows:
@@ -309,6 +515,20 @@ def save_hf_dataset(rows: List[Dict[str, Any]],
                     p_high: float,
                     wl: float,
                     ww: float):
+    """
+    Save rows as a Hugging Face dataset, optionally embedding normalized images.
+
+    Args:
+        rows: Dataset rows to save.
+        out_dir: Destination ``save_to_disk`` directory.
+        logger: Logger used for warnings and summary messages.
+        data_io_mode: ``png_paths`` stores paths; ``tif_direct`` embeds images.
+        norm_mode: Normalization mode for TIFF loading.
+        p_low: Lower percentile for percentile normalization.
+        p_high: Upper percentile for percentile normalization.
+        wl: Window level for ``wlww`` normalization.
+        ww: Window width for ``wlww`` normalization.
+    """
     if not HF_AVAILABLE:
         logger.warning("datasets library not available; skipping HF dataset save.")
         return
@@ -345,11 +565,30 @@ def save_hf_dataset(rows: List[Dict[str, Any]],
 # --------------------- Grouping / Splitting ----------------------
 @dataclass
 class TmpGrouping:
+    """
+    Temporary grouping options used during validation splitting.
+
+    Attributes:
+        mode: Grouping strategy: ``none``, ``regex``, or ``prefix``.
+        regex: Regular expression used when ``mode`` is ``regex``.
+        prefix_len: Prefix length used when ``mode`` is ``prefix``.
+    """
+
     mode: str
     regex: str = "^(.*?)[_.-]\\d+$"
     prefix_len: int = 0
 
 def make_group_id(stem: str, grouping: TmpGrouping) -> str:
+    """
+    Create a group id for a normalized image stem.
+
+    Args:
+        stem: Lowercase filename stem.
+        grouping: Grouping strategy and parameters.
+
+    Returns:
+        Group id used to keep related rows together during splitting.
+    """
     s = stem.lower()
     if grouping.mode == "none":
         return s
@@ -367,6 +606,20 @@ def stratified_group_split(rows: List[Dict[str, Any]],
                            stratify_by_category: bool,
                            seed: int,
                            logger: logging.Logger) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """
+    Split rows by group, optionally approximating category distribution.
+
+    Args:
+        rows: Dataset rows with ``metadata.stem`` and ``metadata.category``.
+        val_ratio: Target validation fraction.
+        grouping: Grouping strategy used to avoid related-row leakage.
+        stratify_by_category: Whether to approximate category balance in validation.
+        seed: Random seed for group ordering.
+        logger: Logger used for split diagnostics.
+
+    Returns:
+        ``(train_rows, val_rows)``.
+    """
     random.seed(seed)
 
     # group rows
@@ -439,6 +692,15 @@ DEFAULT_ASSISTANT_TEMPLATE = (
 )
 
 def parse_config(cfg_path: Path) -> BuildCfg:
+    """
+    Parse a dataset-build JSON config into typed configuration objects.
+
+    Args:
+        cfg_path: Path to the JSON config.
+
+    Returns:
+        Parsed ``BuildCfg`` instance.
+    """
     cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
 
     subsets = [SubsetCfg(
@@ -479,6 +741,12 @@ def parse_config(cfg_path: Path) -> BuildCfg:
     )
 
 def main():
+    """
+    Build TRL-ready JSONL/HF datasets from the configured image subsets.
+
+    The command reads a build config, emits per-subset JSONL files, optionally
+    saves Hugging Face datasets, and can derive train/validation splits.
+    """
     ap = argparse.ArgumentParser(
         description="Step 2: Build TRL-ready datasets from PNGs or directly from TIFFs."
     )
@@ -598,6 +866,7 @@ def main():
 
             # stats entries for final train/val
             def _count(rows: List[Dict[str, Any]]):
+                """Count quality categories in a row list."""
                 cc: Dict[str, int] = {}
                 for r in rows:
                     cc[r["metadata"]["category"]] = cc.get(r["metadata"]["category"], 0) + 1
