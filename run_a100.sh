@@ -27,8 +27,8 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 mkdir -p "$HF_HOME"
 cd /home/woody/iwi5/iwi5255h/ldct_iqa_mos_based
 
-python -m scripts.sweep_sft --config config/sft_sweep.json
-# python -m scripts.sweep_grpo --config config/grpo_sweep.json --resume
+# python -m scripts.sweep_sft --config config/sft_sweep.json
+python -m scripts.sweep_grpo --config config/grpo_sweep.json --resume
 
 # To run evaluation on A100 instead, replace the command above with:
 # python -m scripts.evaluate --config config/eval.json

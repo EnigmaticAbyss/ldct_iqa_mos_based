@@ -147,6 +147,7 @@ class LDCTGRPOTrainer:
         self.train_ds: Optional[Dataset] = None
         self.val_ds: Optional[Dataset] = None
         self.trainer: Optional[GRPOTrainer] = None
+        self.generation_kwargs: Optional[dict] = None
 
         logger.info(f"Initialized TRL GRPO Trainer | model={self.cfg.model_name}")
 
@@ -215,6 +216,115 @@ class LDCTGRPOTrainer:
         if value in {"fp32", "float32"}:
             return torch.float32
         raise ValueError("torch_dtype must be one of: auto, bf16, fp16, fp32")
+
+    @staticmethod
+    def _as_token_id(value: Any) -> Optional[int]:
+        if isinstance(value, bool) or value is None:
+            return None
+        try:
+            token_id = int(value)
+        except (TypeError, ValueError):
+            return None
+        return token_id if token_id >= 0 else None
+
+    @staticmethod
+    def _config_objects(model: Any) -> list[Any]:
+        objects: list[Any] = []
+        config = getattr(model, "config", None)
+        if config is not None:
+            objects.append(config)
+            text_config = getattr(config, "text_config", None)
+            if text_config is not None:
+                objects.append(text_config)
+
+        base_model = getattr(model, "base_model", None)
+        base_config = getattr(base_model, "config", None)
+        if base_config is not None and all(base_config is not obj for obj in objects):
+            objects.append(base_config)
+
+        return objects
+
+    @staticmethod
+    def _tokenizer_objects(processor: Any) -> list[Any]:
+        objects = [processor]
+        tokenizer = getattr(processor, "tokenizer", None)
+        if tokenizer is not None and tokenizer is not processor:
+            objects.append(tokenizer)
+        return objects
+
+    @classmethod
+    def _collect_image_token_ids(cls, processor: Any, model: Any) -> list[int]:
+        token_ids: set[int] = set()
+        objects = cls._tokenizer_objects(processor) + cls._config_objects(model)
+
+        for obj in objects:
+            for attr in ("image_token_id", "image_token_index"):
+                token_id = cls._as_token_id(getattr(obj, attr, None))
+                if token_id is not None:
+                    token_ids.add(token_id)
+
+        tokenizer = getattr(processor, "tokenizer", processor)
+        convert_tokens_to_ids = getattr(tokenizer, "convert_tokens_to_ids", None)
+        if callable(convert_tokens_to_ids):
+            unk_id = cls._as_token_id(getattr(tokenizer, "unk_token_id", None))
+            token_strings = {
+                "<image>",
+                "<image_soft_token>",
+                "<start_of_image>",
+                "<end_of_image>",
+                "<|image|>",
+                "<|image_1|>",
+            }
+            for obj in objects:
+                image_token = getattr(obj, "image_token", None)
+                if isinstance(image_token, str):
+                    token_strings.add(image_token)
+
+            for token in sorted(token_strings):
+                token_id = cls._as_token_id(convert_tokens_to_ids(token))
+                if token_id is not None and token_id != unk_id:
+                    token_ids.add(token_id)
+
+        return sorted(token_ids)
+
+    @staticmethod
+    def _merge_bad_words_ids(existing: Any, token_ids: list[int]) -> list[list[int]]:
+        merged: list[list[int]] = []
+        seen: set[tuple[int, ...]] = set()
+
+        if existing:
+            for item in existing:
+                values = item if isinstance(item, list) else [item]
+                ids = [int(value) for value in values]
+                key = tuple(ids)
+                if key not in seen:
+                    seen.add(key)
+                    merged.append(ids)
+
+        for token_id in token_ids:
+            key = (int(token_id),)
+            if key not in seen:
+                seen.add(key)
+                merged.append([int(token_id)])
+
+        return merged
+
+    def _build_generation_kwargs(self, processor: Any, model: Any) -> Optional[dict]:
+        generation_kwargs = dict(self.cfg.generation_kwargs or {})
+        image_token_ids = self._collect_image_token_ids(processor, model)
+        if image_token_ids:
+            generation_kwargs["bad_words_ids"] = self._merge_bad_words_ids(
+                generation_kwargs.get("bad_words_ids"),
+                image_token_ids,
+            )
+            logger.info(
+                "Suppressing image placeholder token ids during GRPO generation: %s",
+                image_token_ids,
+            )
+        else:
+            logger.warning("Could not find image placeholder token ids to suppress during GRPO generation.")
+
+        return generation_kwargs or None
 
     def load_model(self):
         adapter_model_dir = self.cfg.adapter_model_dir
@@ -291,6 +401,7 @@ class LDCTGRPOTrainer:
 
         self.model = model
         self.processor = processor
+        self.generation_kwargs = self._build_generation_kwargs(processor, model)
         logger.info("Model + processor ready.")
 
     # ---------------- Trainer ---------------- #
@@ -330,7 +441,7 @@ class LDCTGRPOTrainer:
             "top_k": self.cfg.top_k,
             "min_p": self.cfg.min_p,
             "repetition_penalty": self.cfg.repetition_penalty,
-            "generation_kwargs": self.cfg.generation_kwargs,
+            "generation_kwargs": self.generation_kwargs,
             "beta": self.cfg.beta,
             "num_iterations": self.cfg.num_iterations,
             "epsilon": self.cfg.epsilon,

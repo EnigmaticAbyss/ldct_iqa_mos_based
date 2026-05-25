@@ -19,5 +19,7 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 mkdir -p "$HF_HOME"
 cd /home/woody/iwi5/iwi5255h/ldct_iqa_mos_based
 
+python -m scripts.sweep_sft --config config/sft_sweep.json 
+# python -m scripts.sweep_grpo --config config/grpo_sweep.json
+
 # python -m scripts.sweep_sft --config config/sft_sweep.json --dry-run
-python -m scripts.sweep_grpo --config config/grpo_sweep.json
