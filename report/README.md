@@ -8,4 +8,4 @@ Build the PDF from this directory:
 make
 ```
 
-The generated report is `main.pdf`. Edit `main.tex` for the report content, `semml_report.sty` for layout/style changes, and `references.bib` for bibliography entries.
+The generated report is `main.pdf`. Edit `main.tex` for the report content, `semml_report.sty` for layout/style changes, and `references.bib` for bibliography entries. The selected SFT and GRPO plots are stored locally under `figures/`, so the complete `report/` folder can also be uploaded to Overleaf.
