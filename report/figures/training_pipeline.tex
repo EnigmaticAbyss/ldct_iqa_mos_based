@@ -29,7 +29,7 @@
   \node[format] (sft-row) at (5.36,3.74) {Chat row\\image + instruction + target};
   \node[model] (sft-trl) at (5.36,2.76) {TRL \texttt{SFTTrainer}\\assistant-only loss};
   \node[model] (sft-model) at (5.36,1.78) {MedGemma 1.5\\+ LoRA adapter};
-  \node[loss] (sft-out) at (5.36,0.70) {Generated target\\\texttt{\{"rating": y\}}};
+  \node[loss] (sft-out) at (5.36,0.44) {Generated target\\\texttt{\{"rating": y\}}};
   \draw[flow] (sft-row) -- (sft-trl);
   \draw[flow] (sft-trl) -- (sft-model);
   \draw[flow] (sft-model) -- (sft-out);
@@ -39,7 +39,7 @@
   \node[format] (grpo-row) at (9.16,3.74) {Prompt-only row\\image + instruction};
   \node[model] (grpo-trl) at (9.16,2.76) {TRL \texttt{GRPOTrainer}\\base or SFT initialization};
   \node[model] (grpo-gen) at (9.16,1.78) {MedGemma 1.5 + LoRA\\group of 4 completions};
-  \node[loss] (grpo-reward) at (9.16,0.70) {MOS reward\\$R(\hat{y},y)=-|\hat{y}-y|$};
+  \node[loss] (grpo-reward) at (9.16,0.44) {MOS reward\\$R(\hat{y},y)=-|\hat{y}-y|$};
   \draw[flow] (grpo-row) -- (grpo-trl);
   \draw[flow] (grpo-trl) -- (grpo-gen);
   \draw[flow] (grpo-gen) -- (grpo-reward);

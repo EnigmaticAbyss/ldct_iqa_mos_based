@@ -21,7 +21,7 @@ This repository contains tools and scripts for low-dose CT (LDCT) image quality 
 
 ## Result Snapshot
 
-The latest  table reports the following held-out test results:
+The   table reports the following held-out test results:
 
 | Model | MAE | RMSE | PLCC | SROCC | KROCC | Coverage |
 |---|---:|---:|---:|---:|---:|---:|
@@ -217,13 +217,7 @@ python -m scripts.sweep_grpo --config config/grpo_sweep.json
 
 Both sweep entrypoints use the shared implementation in `scripts/sweep_common.py`. Use `--dry-run` to preview commands and run configs without launching training. The GRPO sweep includes runs that start from the SFT adapter and runs that start directly from the base model.
 
-### A100 / SLURM runs
 
-The repository includes `run_a100.sh` for the SLURM environment used in the experiments. It activates the Conda environment, sets Hugging Face cache paths, and resumes both SFT and GRPO sweeps:
-
-```bash
-sbatch run_a100.sh
-```
 
 
 
