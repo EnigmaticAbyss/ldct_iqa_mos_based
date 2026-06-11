@@ -1,85 +1,136 @@
 {
-  "base_train_config": "config/grpo.json",
-  "base_eval_config": "config/grpo_eval.json",
-  "output_root": "output/sweeps/grpo_param_study",
-  "skip_existing": true,
-  "continue_on_error": false,
-  "primary_metric": "srocc",
-  "primary_mode": "max",
-  "force_separate_output_dirs": true,
-  "runs": [
-    {
-      "name": "baseline_g4_beta0_lr1e-5_temp07",
-      "train": {
-        "num_generations": 4,
-        "num_generations_eval": 4,
-        "beta": 0.0,
-        "learning_rate": 0.00001,
-        "temperature": 0.7
-      }
-    },
-    {
-      "name": "kl_beta002_g4_lr1e-5_temp07",
-      "train": {
-        "num_generations": 4,
-        "num_generations_eval": 4,
-        "beta": 0.02,
-        "learning_rate": 0.00001,
-        "temperature": 0.7
-      }
-    },
-    {
-      "name": "lower_lr_g4_beta0_lr5e-6_temp07",
-      "train": {
-        "num_generations": 4,
-        "num_generations_eval": 4,
-        "beta": 0.0,
-        "learning_rate": 0.000005,
-        "temperature": 0.7
-      }
-    },
-    {
-      "name": "higher_temp_g4_beta0_lr1e-5_temp10",
-      "train": {
-        "num_generations": 4,
-        "num_generations_eval": 4,
-        "beta": 0.0,
-        "learning_rate": 0.00001,
-        "temperature": 1.0
-      }
-    },
-    {
-      "name": "longer_completion_g4_beta0_lr1e-5_len48",
-      "train": {
-        "num_generations": 4,
-        "num_generations_eval": 4,
-        "beta": 0.0,
-        "learning_rate": 0.00001,
-        "temperature": 0.7,
-        "max_completion_length": 48
-      }
-    },
-    {
-      "name": "base_model_g4_beta0_lr1e-5_temp07",
-      "train": {
-        "adapter_model_dir": null,
-        "num_generations": 4,
-        "num_generations_eval": 4,
-        "beta": 0.0,
-        "learning_rate": 0.00001,
-        "temperature": 0.7
-      }
-    },
-    {
-      "name": "base_model_lower_lr_g4_beta0_lr5e-6_temp07",
-      "train": {
-        "adapter_model_dir": null,
-        "num_generations": 4,
-        "num_generations_eval": 4,
-        "beta": 0.0,
-        "learning_rate": 0.000005,
-        "temperature": 0.7
-      }
-    }
-  ]
+    "base_train_config": "config/grpo.json",
+    "base_eval_config": "config/grpo_eval.json",
+    "output_root": "output/sweeps/grpo_param_study",
+    "skip_existing": true,
+    "continue_on_error": false,
+    "primary_metric": "srocc",
+    "primary_mode": "max",
+    "force_separate_output_dirs": true,
+    "runs": [
+        {
+            "name": "baseline_g4_beta0_lr1e-5_temp07",
+            "train": {
+                "num_generations": 4,
+                "num_generations_eval": 4,
+                "beta": 0.0,
+                "learning_rate": 1e-05,
+                "temperature": 0.7
+            }
+        },
+        {
+            "name": "kl_beta002_g4_lr1e-5_temp07",
+            "train": {
+                "num_generations": 4,
+                "num_generations_eval": 4,
+                "beta": 0.02,
+                "learning_rate": 1e-05,
+                "temperature": 0.7
+            }
+        },
+        {
+            "name": "kl_beta005_g4_lr1e-5_temp07",
+            "train": {
+                "num_generations": 4,
+                "num_generations_eval": 4,
+                "beta": 0.05,
+                "learning_rate": 1e-05,
+                "temperature": 0.7
+            }
+        },
+        {
+            "name": "lower_lr_g4_beta0_lr5e-6_temp07",
+            "train": {
+                "num_generations": 4,
+                "num_generations_eval": 4,
+                "beta": 0.0,
+                "learning_rate": 5e-06,
+                "temperature": 0.7
+            }
+        },
+        {
+            "name": "higher_lr_g4_beta0_lr2e-5_temp07",
+            "train": {
+                "num_generations": 4,
+                "num_generations_eval": 4,
+                "beta": 0.0,
+                "learning_rate": 2e-05,
+                "temperature": 0.7
+            }
+        },
+        {
+            "name": "lower_temp_g4_beta0_lr1e-5_temp03",
+            "train": {
+                "num_generations": 4,
+                "num_generations_eval": 4,
+                "beta": 0.0,
+                "learning_rate": 1e-05,
+                "temperature": 0.3
+            }
+        },
+        {
+            "name": "higher_temp_g4_beta0_lr1e-5_temp10",
+            "train": {
+                "num_generations": 4,
+                "num_generations_eval": 4,
+                "beta": 0.0,
+                "learning_rate": 1e-05,
+                "temperature": 1.0
+            }
+        },
+        {
+            "name": "group2_beta0_lr1e-5_temp07",
+            "train": {
+                "num_generations": 2,
+                "num_generations_eval": 2,
+                "beta": 0.0,
+                "learning_rate": 1e-05,
+                "temperature": 0.7
+            }
+        },
+        {
+            "name": "shorter_completion_g4_beta0_lr1e-5_len16",
+            "train": {
+                "num_generations": 4,
+                "num_generations_eval": 4,
+                "beta": 0.0,
+                "learning_rate": 1e-05,
+                "temperature": 0.7,
+                "max_completion_length": 16
+            }
+        },
+        {
+            "name": "longer_completion_g4_beta0_lr1e-5_len48",
+            "train": {
+                "num_generations": 4,
+                "num_generations_eval": 4,
+                "beta": 0.0,
+                "learning_rate": 1e-05,
+                "temperature": 0.7,
+                "max_completion_length": 48
+            }
+        },
+        {
+            "name": "base_model_g4_beta0_lr1e-5_temp07",
+            "train": {
+                "adapter_model_dir": null,
+                "num_generations": 4,
+                "num_generations_eval": 4,
+                "beta": 0.0,
+                "learning_rate": 1e-05,
+                "temperature": 0.7
+            }
+        },
+        {
+            "name": "base_model_lower_lr_g4_beta0_lr5e-6_temp07",
+            "train": {
+                "adapter_model_dir": null,
+                "num_generations": 4,
+                "num_generations_eval": 4,
+                "beta": 0.0,
+                "learning_rate": 5e-06,
+                "temperature": 0.7
+            }
+        }
+    ]
 }

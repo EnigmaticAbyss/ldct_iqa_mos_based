@@ -1,369 +1,0 @@
-### Starting TaskPrologue of job 1553210 on tg081 at Thu Mar 19 11:44:13 PM CET 2026
-Running on cores 6-7,22-23,38-39,54-55 with governor powersave
-Thu Mar 19 23:44:13 2026       
-+-----------------------------------------------------------------------------------------+
-| NVIDIA-SMI 580.126.20             Driver Version: 580.126.20     CUDA Version: 13.0     |
-+-----------------------------------------+------------------------+----------------------+
-| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
-| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
-|                                         |                        |               MIG M. |
-|=========================================+========================+======================|
-|   0  NVIDIA GeForce RTX 3080        On  |   00000000:3E:00.0 Off |                  N/A |
-| 30%   35C    P8             18W /  300W |       1MiB /  10240MiB |      0%      Default |
-|                                         |                        |                  N/A |
-+-----------------------------------------+------------------------+----------------------+
-
-+-----------------------------------------------------------------------------------------+
-| Processes:                                                                              |
-|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
-|        ID   ID                                                               Usage      |
-|=========================================================================================|
-|  No running processes found                                                             |
-+-----------------------------------------------------------------------------------------+
-### Finished TaskPrologue
-
-Loading weights:   0%|          | 0/883 [00:00<?, ?it/s]Loading weights:   0%|          | 1/883 [00:03<48:43,  3.32s/it]Loading weights:   0%|          | 3/883 [00:05<23:04,  1.57s/it]Loading weights:   0%|          | 4/883 [00:06<19:58,  1.36s/it]Loading weights:   1%|          | 5/883 [00:07<20:17,  1.39s/it]Loading weights:   1%|          | 10/883 [00:08<08:16,  1.76it/s]Loading weights:   1%|          | 11/883 [00:10<10:04,  1.44it/s]Loading weights:   1%|▏         | 13/883 [00:12<11:26,  1.27it/s]Loading weights:   2%|▏         | 14/883 [00:13<13:20,  1.09it/s]Loading weights:   2%|▏         | 16/883 [00:14<11:59,  1.20it/s]Loading weights:   2%|▏         | 17/883 [00:16<12:54,  1.12it/s]Loading weights:   2%|▏         | 18/883 [00:16<13:08,  1.10it/s]Loading weights:   3%|▎         | 23/883 [00:18<07:21,  1.95it/s]Loading weights:   3%|▎         | 24/883 [00:19<08:40,  1.65it/s]Loading weights:   3%|▎         | 26/883 [00:20<09:15,  1.54it/s]Loading weights:   3%|▎         | 27/883 [00:21<09:23,  1.52it/s]Loading weights:   3%|▎         | 29/883 [00:22<09:24,  1.51it/s]Loading weights:   3%|▎         | 30/883 [00:24<12:08,  1.17it/s]Loading weights:   4%|▎         | 31/883 [00:25<12:13,  1.16it/s]Loading weights:   4%|▍         | 36/883 [00:26<06:15,  2.26it/s]Loading weights:   4%|▍         | 37/883 [00:26<06:14,  2.26it/s]Loading weights:   4%|▍         | 39/883 [00:26<04:40,  3.01it/s]Loading weights:   5%|▍         | 40/883 [00:27<04:09,  3.37it/s]Loading weights:   5%|▍         | 43/883 [00:27<02:47,  5.02it/s]Loading weights:   5%|▍         | 44/883 [00:27<02:44,  5.10it/s]Loading weights:   6%|▌         | 50/883 [00:27<01:22, 10.07it/s]Loading weights:   6%|▌         | 52/883 [00:27<01:20, 10.34it/s]Loading weights:   6%|▌         | 54/883 [00:27<01:14, 11.10it/s]Loading weights:   6%|▋         | 56/883 [00:28<01:25,  9.66it/s]Loading weights:   7%|▋         | 58/883 [00:28<01:22,  9.94it/s]Loading weights:   7%|▋         | 62/883 [00:28<00:59, 13.87it/s]Loading weights:   7%|▋         | 64/883 [00:28<01:01, 13.33it/s]Loading weights:   7%|▋         | 66/883 [00:29<01:18, 10.35it/s]Loading weights:   8%|▊         | 69/883 [00:29<01:20, 10.05it/s]Loading weights:   9%|▉         | 82/883 [00:29<00:29, 27.27it/s]Loading weights:  35%|███▍      | 309/883 [00:29<00:01, 408.37it/s]Loading weights:  68%|██████▊   | 601/883 [00:29<00:00, 898.30it/s]Loading weights: 100%|██████████| 883/883 [00:29<00:00, 29.66it/s] 
-/home/hpc/iwi5/iwi5255h/miniconda3/envs/vlm-iqa-26/lib/python3.10/site-packages/peft/tuners/tuners_utils.py:919: UserWarning: Model with `tie_word_embeddings=True` and the tied_target_modules=['lm_head'] are part of the adapter. This can lead to complications, for example when merging the adapter or converting your model to formats other than safetensors. See for example https://github.com/huggingface/peft/issues/2018.
-  warnings.warn(
-The image processor of type `Gemma3ImageProcessor` is now loaded as a fast processor by default, even if the model checkpoint was saved with a slow processor. This is a breaking change and may produce slightly different outputs. To continue using the slow processor, instantiate this class with `use_fast=False`. 
-Generating train split: 0 examples [00:00, ? examples/s]Generating train split: 300 examples [00:00, 50778.50 examples/s]
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-Setting `pad_token_id` to `eos_token_id`:1 for open-end generation.
-{
-  "metrics": {
-    "mae": 0.562666654586792,
-    "rmse": 0.707865834236145,
-    "valid_predictions": 300,
-    "total_predictions": 300,
-    "prediction_rate": 1.0,
-    "plcc": 0.7694740295410156,
-    "plcc_p_value": 5.640604376560775e-60,
-    "srocc": 0.7708738188064335,
-    "srocc_p_value": 2.5561664585967836e-60,
-    "krocc": 0.6223016925680104,
-    "krocc_p_value": 8.504270439802691e-47
-  },
-  "num_samples": 300,
-  "prediction_failures": 0
-}
-=== JOB_STATISTICS ===
-=== current date     : Thu Mar 19 11:56:27 PM CET 2026
-= Job-ID             : 1553210 on tinygpu
-= Job-Name           : iqa
-= Job-Command        : /home/woody/iwi5/iwi5255h/ldct_iqa_mos_based/run.sh
-= Initial workdir    : /home/woody/iwi5/iwi5255h/ldct_iqa_mos_based
-= Queue/Partition    : rtx3080
-= Slurm account      : iwi5 with QOS=normal
-= Requested resources:  for 15:00:00
-= Elapsed runtime    : 00:12:15
-= Total RAM usage    : 12.7 GiB of requested  GiB (%)   
-= Node list          : tg081
-= Subm/Elig/Start/End: 2026-03-19T23:44:11 / 2026-03-19T23:44:11 / 2026-03-19T23:44:12 / 2026-03-19T23:56:27
-======================
-=== Quota infos ======
-    Path                 Used     SoftQ    HardQ    Gracetime  Filec    FileQ    FiHaQ    FileGrace    
-    /home/woody            29.5G  1000.0G  1500.0G        N/A   6,595    5,000K   7,500K        N/A    
-    /home/hpc              63.6G   104.9G   209.7G        N/A     142K     500K   1,000K        N/A    
-    /home/vault             0.0K  1048.6G  2097.2G        N/A       1      200K     400K        N/A    
-======================
-=== GPU utilization ==
-gpu_name, gpu_bus_id, pid, gpu_utilization [%], mem_utilization [%], max_memory_usage [MiB], time [ms]
-NVIDIA GeForce RTX 3080, 00000000:3E:00.0, 388504, 24 %, 11 %, 9418 MiB, 657341 ms

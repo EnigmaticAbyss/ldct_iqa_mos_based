@@ -46,6 +46,13 @@
 \titlespacing*{\subsubsection}{0pt}{6pt plus 1pt minus 1pt}{2pt}
 
 \renewcommand{\abstractname}{Abstract}
+\renewenvironment{abstract}{%
+  \begin{center}
+    \bfseries \abstractname
+  \end{center}
+}{%
+  \par
+}
 
 \makeatletter
 \renewcommand{\maketitle}{%

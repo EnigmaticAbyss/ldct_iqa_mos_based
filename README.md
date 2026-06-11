@@ -1,6 +1,34 @@
-# LDCT IQA MOS-Based Model Training and Evaluation
+<p align="center">
+  <img src="assets/medgemma_icon.svg" alt="MedGemma icon" width="360">
+</p>
+
+<h1 align="center">LDCT IQA MOS-Based Model Training and Evaluation</h1>
+
+<p align="center">
+  MedGemma-based low-dose CT image quality assessment with supervised fine-tuning,
+  MOS-reward GRPO refinement, and reproducible evaluation sweeps.
+</p>
 
 This repository contains tools and scripts for low-dose CT (LDCT) image quality assessment (IQA) using visual language models (VLMs) and MOS regression. It includes data preprocessing, model training, evaluation, model comparison, and sweep automation for hyperparameter search.
+
+## At a Glance
+
+- **Task:** no-reference LDCT image quality assessment by predicting a radiologist mean opinion score (MOS) from a CT slice.
+- **Base model:** `google/medgemma-1.5-4b-it`, adapted with LoRA.
+- **Main comparison:** direct prompting, supervised fine-tuning (SFT), base-initialized GRPO, and SFT-initialized GRPO.
+- **Dataset split:** 1,300 annotated LDCT images: 900 train, 100 validation, and 300 held-out test samples.
+- **Main finding:** SFT is the strongest evaluated adaptation strategy; SFT-initialized GRPO improves over direct prompting but does not surpass SFT.
+
+## Result Snapshot
+
+The latest  table reports the following held-out test results:
+
+| Model | MAE | RMSE | PLCC | SROCC | KROCC | Coverage |
+|---|---:|---:|---:|---:|---:|---:|
+| Direct base VLM | 4.453 | 5.395 | 0.014 | -0.020 | -0.016 | 100.0% |
+| SFT initialization adapter | **0.347** | **0.451** | 0.916 | 0.917 | 0.787 | 100.0% |
+| Best SFT | 0.393 | 0.482 | **0.930** | **0.932** | **0.808** | 100.0% |
+| Best SFT+GRPO | 0.666 | 0.796 | 0.897 | 0.907 | 0.788 | 100.0% |
 
 ## Project Overview
 
@@ -26,6 +54,7 @@ This repository contains tools and scripts for low-dose CT (LDCT) image quality 
 
 - Python 3.10
 - GPU with CUDA support is recommended for training and inference.
+- Access to the MedGemma checkpoint used in the configs is required for training and evaluation.
 - Core Python dependencies include:
   - `torch`
   - `transformers`
@@ -39,6 +68,8 @@ This repository contains tools and scripts for low-dose CT (LDCT) image quality 
 The repository includes `vlm-iqa-env.yml` for a Conda-style environment definition.
 
 ## Data Layout
+
+The LDCTIQAC-style data used by this project contain TIFF LDCT images and MOS annotations. The checked-in preprocessing configuration creates a 10% validation split from the 1,000-image development set, producing 900 train, 100 validation, and 300 test records.
 
 - `datasets/ct_tif/`: original LDCT TIFF files for train/test.
 - `datasets/ct_PNG/`: converted PNG images used for model input.
@@ -186,6 +217,17 @@ python -m scripts.sweep_grpo --config config/grpo_sweep.json
 
 Both sweep entrypoints use the shared implementation in `scripts/sweep_common.py`. Use `--dry-run` to preview commands and run configs without launching training. The GRPO sweep includes runs that start from the SFT adapter and runs that start directly from the base model.
 
+### A100 / SLURM runs
+
+The repository includes `run_a100.sh` for the SLURM environment used in the experiments. It activates the Conda environment, sets Hugging Face cache paths, and resumes both SFT and GRPO sweeps:
+
+```bash
+sbatch run_a100.sh
+```
+
+
+
+
 ## Outputs and Logs
 
 - `output/model/`: trained model checkpoints, adapter configs, and training results.
@@ -194,6 +236,5 @@ Both sweep entrypoints use the shared implementation in `scripts/sweep_common.py
 
 ## Notes
 
-- The repository supports base MOS regression, TRL-style supervised fine-tuning, and MOS-only GRPO refinement.
-- SFT and GRPO evaluation use an image-chat prompt template and parse predicted MOS scores from generated text.
+
 - The `src` package contains reusable components for data loading, collator construction, metric computation, and model comparison.

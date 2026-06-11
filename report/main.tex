@@ -5,69 +5,119 @@
 \usepackage{amssymb}
 \usepackage{booktabs}
 \usepackage{graphicx}
+\usepackage[section]{placeins}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,calc,fit,positioning}
 \usepackage{url}
 \urlstyle{tt}
 
 \title{MOS-Based Low-Dose CT Image Quality Assessment with Vision-Language Models}
 
 \author{
-Author Name\\
-Department or Laboratory Name\\
-Institution Name\\
-\texttt{author.email@example.com}
+Arash Mousavi, Yipeng Sun\\
+University of Erlangen-Nuremberg, Pattern Recognition Lab\\[0.5em]
+\texttt{arash.mousavi@fau.de,yipeng.sun@fau.de}
 }
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-Low-dose computed tomography (LDCT) reduces radiation exposure but introduces image degradation that can affect diagnostic confidence. This report presents a mean-opinion-score (MOS) based image quality assessment pipeline for LDCT images using vision-language models (VLMs). The repository implements preprocessing from TIFF to normalized PNG and JSONL data, supervised fine-tuning (SFT) with LoRA adapters, optional MOS-regression training, GRPO-style refinement, and standardized evaluation. Final experiments include six SFT and seven GRPO configurations on 300 test samples. The selected SFT sweep run reaches SROCC 0.932 with complete prediction coverage, while the selected GRPO run reaches SROCC 0.883.
+Low-dose computed tomography (LDCT) reduces radiation exposure but can introduce image degradation that affects diagnostic confidence. This work investigates mean opinion score (MOS)-based LDCT image quality assessment using MedGemma, a medical vision-language model (VLM). We fine-tune MedGemma and compare supervised fine-tuning (SFT) with group relative policy optimization (GRPO), including GRPO initialized from either the base VLM or an SFT adapter, to examine whether sequential SFT--GRPO adaptation improves prediction performance. The results show that SFT alone is the most effective strategy under the evaluated settings. GRPO performs better when initialized from an SFT adapter than from the base VLM; however, the additional refinement stage does not surpass SFT alone.\footnote{Code: \url{https://github.com/EnigmaticAbyss/ldct_iqa_mos_based}}
 \end{abstract}
 
-\keywords{low-dose CT, image quality assessment, MOS prediction, vision-language model, supervised fine-tuning}
+\keywords{low-dose CT, image quality assessment, MOS prediction, MedGemma, vision-language model, supervised fine-tuning, group relative policy optimization}
 
 \section{Introduction}
-Low-dose CT acquisition is clinically attractive because it can lower patient radiation exposure. The cost is increased noise, altered texture, and possible loss of diagnostically useful detail. Automatic image quality assessment (IQA) can support model selection, reconstruction tuning, and quality-control workflows by estimating the subjective quality of a scan from image evidence.
+Low-dose computed tomography (LDCT) is clinically attractive because it reduces radiation exposure while preserving diagnostically useful image information. Lower acquisition doses, however, can amplify noise and introduce streak artifacts that impair image quality. Reliable image quality assessment (IQA) is therefore important for balancing radiation dose against diagnostic utility and for evaluating reconstruction and restoration methods. The LDCTIQAC 2023 benchmark reflects this need by framing LDCT IQA as a no-reference prediction task aligned with radiologists' assessments \cite{lee2025low}.
 
-The repository accompanying this report targets MOS-based LDCT IQA. It trains and evaluates VLM-based predictors that receive a CT image and produce a scalar quality score. The central design goal is practical reproducibility: the code separates preprocessing, dataset conversion, training, evaluation, and model comparison into reusable scripts and JSON configuration files.
+Vision-language models (VLMs) provide a promising foundation for this task because they combine visual representations with instruction-conditioned prediction. MedGemma 1.5 extends open medical VLMs with capabilities for medical image interpretation, including CT imaging \cite{sellergren2026medgemma}. Adapting such a model to MOS prediction is not straightforward: the model must produce a calibrated scalar judgment from an LDCT image, while the available domain-specific training data remain limited. We therefore formulate LDCT IQA as an image-conditioned MOS prediction task and fine-tune MedGemma using parameter-efficient low-rank adaptation (LoRA) \cite{hu2022lora}.
 
-The main contribution of this report is a compact paper-style description of the implemented pipeline and the final experimental artifacts. We summarize the data flow, training modes, evaluation metrics, and observed performance of the base VLM, SFT, and GRPO checkpoints.
+Recent prompt-driven IQA studies show that multimodal models can capture perceptual quality cues, but fine-grained score discrimination remains challenging without task-specific alignment \cite{wu2024comprehensive}. Medical IQA methods have also begun to use prompt-guided foundation models and radiology-style context \cite{xun2025mediqa,rifa2026capiqa}. LDCT MOS prediction is a stricter setting: the model must map subtle noise texture, streak artifacts, and contrast loss to a radiologist-aligned scalar score rather than only producing a qualitative assessment. This motivates evaluating whether supervised calibration is sufficient or whether reward-based refinement can further improve the MOS predictor.
+
+This scalar prediction setting also exposes failure modes that are less visible in free-form medical image description. A model may generate a syntactically valid answer while compressing the score range, preserving the relative ordering of cases but producing biased absolute values, or failing to return a parseable score at all. These issues are important for LDCT IQA because practical use requires both calibrated MOS estimates and reliable ranking of images by perceived degradation. We therefore treat score accuracy, rank consistency, and valid-output coverage as complementary evidence rather than relying on a single metric.
+
+A central question is which adaptation strategy is most effective for this task. Supervised fine-tuning (SFT) directly learns from image--MOS pairs. Group relative policy optimization (GRPO), introduced as a memory-efficient variant of proximal policy optimization \cite{schulman2017ppo,shao2024deepseekmath}, enables reward-based optimization by favoring generated scores closer to the reference MOS. This raises a practical question: can GRPO refine a supervised adapter and improve MOS prediction, or does SFT already provide the stronger adaptation strategy?
+
+In this work, we systematically compare direct prompting, SFT, GRPO initialized from the base VLM, and sequential SFT--GRPO adaptation using MedGemma. We evaluate multiple SFT and GRPO configurations under a shared preprocessing and evaluation protocol. Our main contributions are:
+\begin{itemize}
+  \item We instantiate a MedGemma-based generative MOS predictor for no-reference LDCT IQA using parameter-efficient LoRA adapters.
+  \item We compare supervised adaptation with MOS-reward GRPO under both base-model and SFT-adapter initialization.
+  \item We analyze score error, rank consistency, prediction coverage, and hyperparameter sensitivity across completed SFT and GRPO sweeps.
+  \item We release the preprocessing, adaptation, and evaluation pipeline to support reproducible comparison of generative MOS predictors for LDCT IQA.
+\end{itemize}
+
+\begin{figure*}[t]
+  \centering
+  \resizebox{0.98\textwidth}{!}{\input{figures/training_pipeline}}
+  \caption{Overview of the LDCT MOS prediction pipeline. A shared preprocessing stage converts LDCT images and MOS annotations into normalized PNG paths and JSONL records. Chat-formatted Arrow datasets support the SFT and GRPO paths, and TRL \cite{trl} is used for both generative adaptation stages.}
+  \label{fig:training-pipeline}
+\end{figure*}
 
 \section{Related Work}
-Classical full-reference IQA metrics such as SSIM model perceptual fidelity through structural image similarity rather than only pixel error \cite{wang2004image}. Statistical image information has also been used to connect visual fidelity with natural image regularities \cite{sheikh2006statistical}. More recent perceptual metrics use deep feature spaces to align better with human judgments \cite{zhang2018unreasonable}.
+\subsection{No-Reference CT Image Quality Assessment}
+Traditional full-reference IQA metrics such as PSNR and SSIM \cite{wang2004image} quantify deviations from a reference image, while learned perceptual distances such as LPIPS \cite{zhang2018unreasonable} compare deep feature representations. Statistical image-information criteria have also been used to connect visual fidelity with natural-image regularities \cite{sheikh2006statistical}. Although useful for reconstruction evaluation, these generic fidelity measures do not directly model radiologists' judgments and often require a suitable reference image. No-reference IQA instead predicts perceptual quality from the observed image alone. For CT imaging, SSIQA introduced self-supervised noise-level prediction as an auxiliary task for no-reference quality assessment \cite{imran2021ssiqa}. The LDCTIQAC 2023 benchmark subsequently enabled direct comparison of CT-IQA methods using radiologists' quality scores for images affected by noise and sparse-view streak artifacts \cite{lee2025low}.
 
-For this project, MOS prediction is treated as an image-conditioned language task. A medical VLM is adapted using lightweight LoRA modules \cite{hu2022lora}, allowing the base model to remain frozen while task-specific parameters are trained. The repository also includes configuration support for TRL-style SFT and GRPO workflows \cite{trl}, with MedGemma used as the base model family \cite{google2025medgemma}.
+Recent CT-specific methods increasingly rely on learned representations. Shi et al.\ estimate primary image content with a denoising diffusion model and combine a dissimilarity map with a transformer-based evaluator \cite{shi2024blind}. DistilIQA uses convolutional and transformer layers together with teacher--student distillation \cite{baldeoncalisto2024distiliqa}. TFKT V2 transfers knowledge from MOS-annotated natural-image datasets to CT IQA through a hybrid convolutional--transformer model \cite{rifa2025tfkt}. These approaches predict quality without requiring a high-dose reference image, but they remain specialized IQA architectures.
+
+\subsection{Prompt-Driven and Vision-Language IQA}
+Multimodal large language models offer a more general route to image quality assessment. Wu et al.\ systematically evaluated prompting strategies for IQA and showed that general-purpose multimodal models can be used as quality assessors \cite{wu2024comprehensive}. In medical imaging, MedIQA introduces a prompt-driven foundation model that adapts across modalities and clinical scenarios \cite{xun2025mediqa}. More recently, CAP-IQA combines radiology-style prompts with context-aware fusion and causal debiasing for abdominal CT quality assessment \cite{rifa2026capiqa}. In contrast to these systems, we adapt an open medical VLM, MedGemma 1.5 \cite{sellergren2026medgemma}, to generate radiologist-aligned LDCT MOS predictions directly.
+
+\subsection{Parameter-Efficient and Reward-Based Adaptation}
+Parameter-efficient fine-tuning is particularly relevant when adapting large models with limited domain-specific data. LoRA introduces trainable low-rank updates while keeping the pretrained model weights frozen \cite{hu2022lora}. Beyond supervised adaptation, GRPO provides a memory-efficient reinforcement learning objective that optimizes groups of generated responses according to a task reward \cite{shao2024deepseekmath}. Zhu et al.\ investigate GRPO-based fine-tuning for medical visual question answering and study factors such as model initialization and medical semantic alignment \cite{zhu2025medicalgrpo}. Our work examines a complementary setting: whether GRPO improves a supervised MedGemma adapter when the target is a calibrated scalar MOS prediction rather than a reasoning response.
+
+\begin{figure*}[t]
+  \centering
+  \resizebox{0.88\textwidth}{!}{\input{figures/sft_prompt_flow}}
+  \caption{SFT prompt construction for MOS prediction. Each LDCT image is paired with a user instruction and the assistant target contains only the MOS value in a compact JSON format. During fine-tuning, the loss is applied to the assistant response while LoRA adapts the MedGemma VLM.}
+  \label{fig:sft-prompt-flow}
+\end{figure*}
 
 \section{Dataset and Preprocessing}
-The expected raw data layout contains TIFF LDCT images and MOS annotations. The preprocessing entrypoint converts source scans into model-ready PNG images and writes split-specific JSONL files:
+Figure~\ref{fig:training-pipeline} summarizes the data flow and the two adaptation paths evaluated in this work. The data are derived from the LDCTIQAC 2023 benchmark \cite{lee2025low} and consist of two-dimensional LDCT slices with radiologist MOS annotations. Raw images are stored as TIFF files with separate MOS annotation files. The preprocessing stage converts source scans into model-ready PNG images and writes split-specific JSONL files:
 \begin{equation}
   \mathcal{D}=\{(x_i, y_i)\}_{i=1}^{N},
 \end{equation}
-where $x_i$ is an LDCT image and $y_i$ is its MOS target. The preprocessing configuration supports min-max or percentile normalization and optional resizing.
+where $x_i$ is an LDCT image and $y_i$ is its MOS target. Preprocessing is intentionally lightweight: images are converted to a common PNG representation and normalized with either min--max or percentile scaling, without aggressive denoising or contrast enhancement. This choice preserves the noise texture and low-dose artifacts that are part of the quality assessment target.
 
-After preprocessing, the repository stores base JSONL files under \path{datasets/processed/}. For TRL training, JSONL files can be converted into Arrow datasets using \path{scripts/build_sft_arrow_dataset.py}. This separation keeps data normalization independent from the training format required by a specific trainer.
+The processed samples are first represented as records containing an image reference and MOS value. For generative fine-tuning, these records are converted into chat-style examples containing an image placeholder, an instruction prompt, and the target MOS response. The chat-formatted data are stored in Arrow format because this representation integrates efficiently with dataset libraries used in transformer training workflows \cite{lhoest2021datasets}, while keeping the core image normalization independent from the training objective.
 
 \section{Method}
-\subsection{Prompted MOS Prediction}
-The base VLM is evaluated by prompting it to predict the MOS score directly from an image. This establishes the zero- or few-instruction baseline for the same downstream parser and evaluation code used by fine-tuned models.
+\subsection{Problem Formulation}
+Given an LDCT image $x_i$, the goal is to predict a scalar MOS value $\hat{y}_i$ that matches the reference score $y_i$. We study this as an image-conditioned prediction problem using MedGemma as the base VLM. The evaluated methods produce a textual answer that is parsed into a scalar MOS, and all predictions are evaluated on the same MOS scale.
+
+\subsection{Prompted VLM Baseline}
+The prompted baseline evaluates the base VLM without task-specific fine-tuning. Each image is paired with an instruction asking the model to predict the MOS score. This baseline tests whether the pretrained medical VLM can produce usable scalar estimates before any task-specific adaptation.
 
 \subsection{Supervised Fine-Tuning}
-The SFT path uses image-chat examples in which the model is instructed to return the MOS score. LoRA adapters are trained on top of the base VLM, reducing trainable parameters while preserving the general medical vision-language representation.
+For supervised fine-tuning, each training sample is converted into a multimodal chat example containing an image placeholder, a MOS prediction instruction, and an assistant response with the target score. As illustrated in Figure~\ref{fig:sft-prompt-flow}, the assistant target is formatted as a compact JSON response, e.g. \texttt{\{"rating": 2.5\}}, which makes the generated score easier to parse consistently. LoRA adapters are trained on top of the base VLM so that task-specific parameters can be learned while preserving the pretrained medical representation.
 
-At inference time, generated text is parsed into a scalar score. Invalid generations are tracked separately, making the prediction rate a first-class evaluation statistic:
+At inference time, generated text is parsed into a scalar score. Invalid generations are tracked separately, making prediction coverage an explicit evaluation metric:
 \begin{equation}
   r_{\mathrm{valid}} = \frac{N_{\mathrm{valid}}}{N_{\mathrm{total}}}.
 \end{equation}
 
-\subsection{Regression and GRPO Modes}
-The codebase also contains a MOS regression trainer and GRPO refinement path. Regression mode predicts MOS through a direct scoring head. GRPO mode can start from an SFT LoRA adapter or directly from the base VLM. The final study uses four generated completions and rewards MOS closeness with negative absolute error:
+\subsection{GRPO Refinement}
+GRPO is evaluated as a reward-based alternative to purely supervised adaptation. Instead of training on assistant targets, the model receives prompt-only image-chat examples and generates a group of candidate MOS responses for each image. Each completion is parsed into a scalar prediction and rewarded according to its closeness to the reference MOS:
 \begin{equation}
   R(\hat{y},y)=-|\hat{y}-y|.
 \end{equation}
-The GRPO study varies learning rate, temperature, KL coefficient, completion length, and initialization. These modes are available through the shared \path{scripts/train.py} and JSON configuration interface.
+Invalid or unparsable completions receive a fixed negative reward. We evaluate GRPO both from the base VLM and from an SFT-initialized adapter to test whether reward-based refinement improves supervised MOS prediction.
+
+\begin{figure*}[t]
+  \centering
+  \resizebox{0.98\textwidth}{!}{\input{figures/grpo_prompt_flow}}
+  \caption{GRPO prompt and reward flow for MOS prediction. The model receives the same prompt-only multimodal input but samples a group of candidate MOS responses instead of learning from a fixed assistant target. Parsed scores are compared with the reference MOS using the absolute-error reward, and the reward signal updates the LoRA adapter.}
+  \label{fig:grpo-prompt-flow}
+\end{figure*}
+
+\section{Experimental Setup}
+The available dataset contains 1,300 annotated LDCT images: 1,000 development images and 300 held-out test images. We reserve 10\% of the development set for validation using a fixed random seed, resulting in 900 training, 100 validation, and 300 test samples. All experiments use these fixed splits, the same preprocessing, the same model family, and a shared evaluation protocol. Across runs, only the model initialization and trainer hyperparameters are varied, keeping data processing and scoring fixed across direct prompting, SFT, and GRPO.
+
+Training and sweep experiments are executed on an A100 GPU through a SLURM-managed environment. MedGemma 1.5 is loaded with 4-bit quantization and bf16 computation following memory-efficient quantized fine-tuning practice \cite{dettmers2023qlora}, and adaptation is performed with LoRA adapters using a fixed random seed. The SFT sweeps vary learning rate, LoRA rank, dropout, and epoch count, while the GRPO sweeps vary initialization, learning rate, KL coefficient, sampling temperature, candidate-group size, and completion length. All generative models are evaluated with the same MOS parser, metric computation, and coverage accounting, ensuring that performance differences reflect the adaptation strategy and hyperparameter setting rather than changes in the evaluation procedure.
 
 \section{Evaluation}
-Evaluation is performed on the held-out test split. Let $\hat{y}_i$ denote the predicted MOS and $y_i$ the ground truth MOS. The primary error metrics are
+All methods are evaluated on the held-out test split under a shared parsing and scoring protocol. Following common MOS-based IQA evaluation practice for LDCT quality assessment \cite{lee2025low}, we report absolute error, correlation, and prediction-coverage metrics. Let $\hat{y}_i$ denote the predicted MOS and $y_i$ the ground-truth MOS. The primary error metrics are
 \begin{equation}
   \mathrm{MAE}=\frac{1}{N}\sum_{i=1}^{N}|\hat{y}_i-y_i|
 \end{equation}
@@ -75,14 +125,14 @@ and
 \begin{equation}
   \mathrm{RMSE}=\sqrt{\frac{1}{N}\sum_{i=1}^{N}(\hat{y}_i-y_i)^2}.
 \end{equation}
-Correlation is reported with PLCC, SROCC, and KROCC to capture linear agreement, monotonic ranking, and pairwise ranking consistency.
+MAE and RMSE quantify the absolute deviation of predicted scores from radiologist MOS targets. Because MOS prediction is also expected to preserve the relative ordering of image quality, we additionally report PLCC, SROCC, and KROCC as complementary correlation measures. PLCC captures linear agreement with the MOS scale, while SROCC and KROCC evaluate rank consistency. For generative models, prediction coverage is also reported because invalid or unparsable text completions can reduce the number of usable MOS estimates.
 
 \subsection{Selected Models}
-The sweep scripts select runs by maximum SROCC. Table~\ref{tab:selected-results} compares the direct baseline, the standalone SFT adapter used to initialize SFT-based GRPO runs, and the selected runs from the final sweeps.
+Model selection is based on SROCC, reflecting the goal of preserving the relative ordering of image quality. Table~\ref{tab:selected-results} compares four representative settings: the prompted base VLM, the SFT initialization checkpoint used for GRPO, the best pure SFT configuration, and the best SFT-initialized GRPO refinement.
 
 \begin{table}[t]
   \centering
-  \caption{Selected test-set MOS prediction results. Lower MAE/RMSE is better; higher correlation and coverage are better. Sweep selections are based on maximum SROCC.}
+  \caption{Overall test-set MOS prediction comparison. Lower MAE/RMSE is better; higher correlation and coverage are better. Best configurations are selected by maximum SROCC.}
   \label{tab:selected-results}
   \scriptsize
   \setlength{\tabcolsep}{2pt}
@@ -92,89 +142,102 @@ The sweep scripts select runs by maximum SROCC. Table~\ref{tab:selected-results}
     Model & MAE & RMSE & PLCC & SROCC & KROCC & Coverage \\
     \midrule
     Direct base VLM & 4.453 & 5.395 & 0.014 & -0.020 & -0.016 & 100.0\% \\
-    Standalone SFT & \textbf{0.347} & \textbf{0.451} & 0.916 & 0.917 & 0.787 & 100.0\% \\
-    Selected SFT & 0.393 & 0.482 & \textbf{0.930} & \textbf{0.932} & \textbf{0.808} & 100.0\% \\
-    Selected GRPO & 0.654 & 0.790 & 0.859 & 0.883 & 0.764 & 100.0\% \\
+    SFT init. & \textbf{0.347} & \textbf{0.451} & 0.916 & 0.917 & 0.787 & 100.0\% \\
+    Best SFT & 0.393 & 0.482 & \textbf{0.930} & \textbf{0.932} & \textbf{0.808} & 100.0\% \\
+    Best SFT+GRPO & 0.666 & 0.796 & 0.897 & 0.907 & 0.788 & 100.0\% \\
     \bottomrule
   \end{tabular}
   }
 \end{table}
 
-Supervised adaptation produces the strongest results. The standalone SFT adapter has the lowest absolute errors, while the selected low-rank SFT sweep run has the strongest correlations. The selected GRPO run is the best GRPO configuration by SROCC and preserves complete prediction coverage, but it does not improve on the SFT results.
+The row denoted SFT init.\ is the standalone supervised adapter used as the starting point for GRPO. It is not the strongest SFT model by SROCC, but it provides the lowest MAE and RMSE. Best SFT is selected separately from the SFT ablation and gives the strongest overall correlation metrics. The best SFT-initialized GRPO run substantially improves over direct prompting and narrows the gap to supervised adaptation, but it does not surpass the SFT models.
 
 \subsection{SFT Parameter Study}
-The SFT study evaluates epoch count, learning rate, LoRA rank, and dropout. All six configurations produce valid scores for all 300 test samples. As shown in Table~\ref{tab:sft-study}, the selected configuration uses two epochs, learning rate $2{\times}10^{-4}$, rank 8 LoRA adapters, and dropout 0.05. The three-epoch baseline has slightly lower error and higher PLCC, but the low-rank run has the best SROCC and KROCC.
+The SFT ablation is organized around a reference configuration with two epochs, learning rate $2{\times}10^{-4}$, LoRA rank 16, and dropout 0.05. We then vary one factor at a time: epoch count, learning rate, LoRA rank, or dropout. LoRA rank $r$ is the dimensionality of the trainable low-rank adapter update; reducing $r$ lowers adapter capacity and the number of trainable parameters. All configurations produce valid MOS predictions for all 300 test samples. Table~\ref{tab:sft-study} shows that SFT is stable across the top configurations: the rank-8 adapter gives the strongest SROCC, the rank-32 adapter gives the strongest KROCC, and three epochs gives the strongest PLCC. In contrast, lowering the learning rate to $5{\times}10^{-5}$ or removing dropout reduces rank consistency. Thus, higher adapter capacity is not consistently beneficial, and the selected rank-8 model provides the best ordering performance under the SROCC selection criterion.
 
 \begin{table}[t]
   \centering
-  \caption{Final SFT parameter study. The selected run is bold. All runs have 100\% prediction coverage.}
+  \caption{SFT ablation study around a rank-16 reference configuration. All runs have 100\% prediction coverage.}
   \label{tab:sft-study}
   \scriptsize
   \setlength{\tabcolsep}{2pt}
-  \begin{tabular}{@{}lrrrr@{}}
+  \resizebox{\linewidth}{!}{%
+  \begin{tabular}{@{}cccccrrrr@{}}
     \toprule
-    SFT configuration & MAE & PLCC & SROCC & KROCC \\
+    Exp ID & Epochs & LR & $r$ & Dropout & MAE & PLCC & SROCC & KROCC \\
     \midrule
-    Baseline, 1 epoch & 0.360 & 0.919 & 0.922 & 0.794 \\
-    Baseline, 2 epochs & 0.384 & 0.930 & 0.931 & 0.804 \\
-    Baseline, 3 epochs & 0.368 & \textbf{0.933} & 0.932 & 0.807 \\
-    Lower LR, $1{\times}10^{-4}$ & 0.374 & 0.931 & 0.932 & 0.804 \\
-    \textbf{Low-rank LoRA, rank 8} & 0.393 & 0.930 & \textbf{0.932} & \textbf{0.808} \\
-    Higher dropout, 0.10 & 0.376 & 0.928 & 0.929 & 0.804 \\
+    A & 2 & $2{\times}10^{-4}$ & 16 & 0.05 & 0.384 & 0.930 & 0.931 & 0.804 \\
+    B & 1 & $2{\times}10^{-4}$ & 16 & 0.05 & \textbf{0.360} & 0.919 & 0.922 & 0.794 \\
+    C & 3 & $2{\times}10^{-4}$ & 16 & 0.05 & 0.368 & \textbf{0.933} & 0.932 & 0.807 \\
+    D & 2 & $1{\times}10^{-4}$ & 16 & 0.05 & 0.374 & 0.931 & 0.932 & 0.804 \\
+    E & 2 & $5{\times}10^{-5}$ & 16 & 0.05 & 0.416 & 0.922 & 0.923 & 0.792 \\
+    F & 2 & $2{\times}10^{-4}$ & 8 & 0.05 & 0.393 & 0.930 & \textbf{0.932} & 0.808 \\
+    G & 2 & $2{\times}10^{-4}$ & 32 & 0.05 & 0.367 & 0.929 & 0.930 & \textbf{0.809} \\
+    H & 2 & $2{\times}10^{-4}$ & 16 & 0.00 & 0.376 & 0.926 & 0.926 & 0.802 \\
+    I & 2 & $2{\times}10^{-4}$ & 16 & 0.10 & 0.376 & 0.928 & 0.929 & 0.804 \\
     \bottomrule
   \end{tabular}
+  }
 \end{table}
 
 \subsection{GRPO Parameter Study}
-The GRPO study contains five SFT-initialized configurations and two runs initialized directly from the base VLM. Table~\ref{tab:grpo-study} shows that the lower learning rate of $5{\times}10^{-6}$ gives the strongest GRPO SROCC while retaining complete coverage. Higher temperature sharply reduces the valid prediction rate. Direct base-model initialization also performs poorly, indicating that the SFT starting point is important for this reward-based refinement stage.
+The GRPO ablation evaluates the effect of initialization, learning rate, KL regularization, sampling temperature, candidate-group size, and completion length. As shown in Table~\ref{tab:grpo-study}, SFT initialization is important: runs initialized directly from the base VLM have weak correlations and lower coverage. Among SFT-initialized runs, increasing the learning rate to $2{\times}10^{-5}$ gives the strongest PLCC and SROCC while maintaining complete coverage. Shorter completions also improve rank consistency, achieving the strongest KROCC among the GRPO runs. In contrast, high sampling temperature and a smaller group of two completions sharply reduce coverage, indicating that reward-based MOS adaptation remains sensitive to generation validity.
 
 \begin{table}[t]
   \centering
-  \caption{Final GRPO parameter study. The selected run is bold. ``SFT'' denotes initialization from the standalone SFT adapter.}
+  \caption{GRPO ablation study over initialization, optimization, and generation settings.}
   \label{tab:grpo-study}
-  \scriptsize
-  \setlength{\tabcolsep}{2pt}
-  \begin{tabular}{@{}lrrrrr@{}}
+  \tiny
+  \setlength{\tabcolsep}{1.4pt}
+  \resizebox{\linewidth}{!}{%
+  \begin{tabular}{@{}cccccccrrrrr@{}}
     \toprule
-    GRPO configuration & MAE & PLCC & SROCC & KROCC & Coverage \\
+    Exp ID & Init. & LR & $\beta$ & Temp. & G & Len. & MAE & PLCC & SROCC & KROCC & Coverage \\
     \midrule
-    SFT init., baseline & 0.690 & 0.854 & 0.883 & 0.763 & 99.3\% \\
-    SFT init., KL 0.02 & 0.654 & 0.854 & 0.877 & 0.759 & 97.0\% \\
-    \textbf{SFT init., LR $\mathbf{5{\times}10^{-6}}$} & \textbf{0.654} & \textbf{0.859} & \textbf{0.883} & \textbf{0.764} & \textbf{100.0\%} \\
-    SFT init., temperature 1.0 & 0.795 & 0.762 & 0.814 & 0.705 & 55.3\% \\
-    SFT init., length 48 & 0.683 & 0.869 & 0.881 & 0.764 & 100.0\% \\
-    Base init., LR $1{\times}10^{-5}$ & 0.974 & 0.076 & 0.073 & 0.061 & 89.3\% \\
-    Base init., LR $5{\times}10^{-6}$ & 1.027 & -0.042 & -0.042 & -0.035 & 89.3\% \\
+    A & SFT & $1{\times}10^{-5}$ & 0 & 0.7 & 4 & 32 & 0.690 & 0.854 & 0.883 & 0.763 & 99.3\% \\
+    B & SFT & $2{\times}10^{-5}$ & 0 & 0.7 & 4 & 32 & 0.666 & \textbf{0.897} & \textbf{0.907} & 0.788 & 100.0\% \\
+    C & SFT & $5{\times}10^{-6}$ & 0 & 0.7 & 4 & 32 & 0.654 & 0.859 & 0.883 & 0.764 & 100.0\% \\
+    D & SFT & $1{\times}10^{-5}$ & 0.02 & 0.7 & 4 & 32 & \textbf{0.654} & 0.854 & 0.877 & 0.759 & 97.0\% \\
+    E & SFT & $1{\times}10^{-5}$ & 0.05 & 0.7 & 4 & 32 & 0.662 & 0.857 & 0.877 & 0.756 & 100.0\% \\
+    F & SFT & $1{\times}10^{-5}$ & 0 & 0.3 & 4 & 32 & 0.681 & 0.854 & 0.876 & 0.756 & 100.0\% \\
+    G & SFT & $1{\times}10^{-5}$ & 0 & 1.0 & 4 & 32 & 0.795 & 0.762 & 0.814 & 0.705 & 55.3\% \\
+    H & SFT & $1{\times}10^{-5}$ & 0 & 0.7 & 2 & 32 & 1.043 & 0.397 & 0.270 & 0.219 & 4.7\% \\
+    I & SFT & $1{\times}10^{-5}$ & 0 & 0.7 & 4 & 16 & 0.658 & 0.874 & 0.902 & \textbf{0.789} & 100.0\% \\
+    J & SFT & $1{\times}10^{-5}$ & 0 & 0.7 & 4 & 48 & 0.683 & 0.869 & 0.881 & 0.764 & 100.0\% \\
+    K & Base & $1{\times}10^{-5}$ & 0 & 0.7 & 4 & 32 & 0.974 & 0.076 & 0.073 & 0.061 & 89.3\% \\
+    L & Base & $5{\times}10^{-6}$ & 0 & 0.7 & 4 & 32 & 1.027 & -0.042 & -0.042 & -0.035 & 89.3\% \\
     \bottomrule
   \end{tabular}
+  }
 \end{table}
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figures/sft_selected_scatter.png}
-  \caption{Predicted versus ground-truth MOS for the selected SFT run. The dashed line denotes ideal agreement.}
+  \caption{Predicted versus ground-truth MOS for the selected SFT run. The dashed line denotes ideal agreement. Overall, 71.3\% of predictions fall within $\pm0.5$ MOS of the reference score.}
   \label{fig:sft-selected-scatter}
 \end{figure}
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{figures/grpo_selected_scatter.png}
-  \caption{Predicted versus ground-truth MOS for the selected GRPO run. The discrete prediction bands indicate range compression after refinement.}
+  \caption{Predicted versus ground-truth MOS for the selected SFT-initialized GRPO run. The discrete prediction bands indicate remaining score-range compression after reward-based refinement. Overall, 43.3\% of predictions fall within $\pm0.5$ MOS of the reference score.}
   \label{fig:grpo-selected-scatter}
 \end{figure}
 
-\section{Implementation}
-The project is organized around reusable command-line entrypoints. Preprocessing is handled by \path{scripts/preprocess_ldct.py}. Training is launched through \path{scripts/train.py}, with the selected mode controlled by JSON files such as \path{config/sft.json}, \path{config/grpo.json}, and \path{config/regression.json}. Evaluation is run with \path{scripts/evaluate.py}, and model comparisons are generated with \path{scripts/compare_models.py}.
-
-This configuration-first layout makes the experiments easy to rerun on an HPC system. Shell scripts such as \path{run.sh} and \path{run_a100.sh} can wrap the same Python entrypoints while preserving the model, data, and output paths in versioned JSON files.
-
 \section{Discussion}
-The final results indicate that MOS scoring benefits strongly from task-specific supervision. The SFT variants consistently achieve correlations above 0.91 while preserving complete prediction coverage. The selected low-rank adapter is especially useful because it reaches the highest SROCC with a smaller LoRA rank.
+The results indicate that LDCT MOS prediction is primarily limited by task calibration rather than by the availability of generic medical visual features. Although the base MedGemma model provides a strong medical VLM prior, direct prompting does not produce reliable scalar MOS estimates. In contrast, SFT exposes the model to the required image-conditioned score format and aligns the generated response with the radiologist MOS scale. This explains why supervised adaptation improves both absolute score accuracy and rank consistency while preserving complete prediction coverage.
 
-GRPO behavior is more sensitive to initialization and generation settings. Starting from the SFT adapter produces useful rank correlations, whereas starting directly from the base VLM does not. The selected GRPO run remains weaker than SFT, and its discrete prediction bands in Figure~\ref{fig:grpo-selected-scatter} suggest that reward refinement compresses the predicted score range. Future experiments should evaluate regression checkpoints, add confidence intervals across seeds, and analyze errors by CT anatomy, dose level, and MOS range.
+The SFT ablation suggests that this calibration is not simply limited by adapter capacity. Once the model learns the required response format and MOS scale, compact LoRA updates appear sufficient to capture the dominant quality cues in the evaluated split. The modest variation across SFT configurations is important for LDCT IQA, where training data are limited and over-parameterized adaptation can increase the risk of fitting score-specific artifacts rather than general image-quality cues.
+
+GRPO behaves differently. Its performance depends strongly on starting from an SFT-initialized adapter, which suggests that the reward signal is useful only after the model has already learned the output structure and approximate score scale. When applied from the base VLM, the scalar absolute-error reward does not provide enough guidance to establish both valid JSON-style MOS responses and calibrated score predictions. With SFT initialization, increasing the GRPO learning rate improves PLCC and SROCC over the earlier lower-learning-rate setting, showing that reward-based refinement can strengthen rank ordering when the policy is already well formatted. Even so, GRPO remains below the original SFT models. A likely explanation is that the absolute-error reward optimizes local score closeness for sampled completions but does not preserve the full supervised distribution learned by SFT. As a result, the policy update can shift probability mass toward a small set of reward-favorable scores, reducing calibration and dynamic range. The banded predictions in Figure~\ref{fig:grpo-selected-scatter} are consistent with this interpretation. For MOS-based IQA, such compression is undesirable because clinically meaningful quality differences may be subtle and ordinal.
+
+The GRPO sweep also highlights the sensitivity of reward-based adaptation to generation settings. Shorter completions improve rank consistency relative to longer completions, whereas KL regularization does not improve over the best unregularized setting. Increasing the sampling temperature substantially reduces valid prediction coverage, and reducing the candidate group to two completions causes most generations to become unusable. These patterns suggest that, for scalar MOS prediction, controlling output validity and score calibration is at least as important as optimizing the reward itself.
+
+These findings support using SFT as the primary adaptation stage for LDCT MOS prediction and treating GRPO as an optional refinement that requires careful reward and sampling design. Future work should compare the generative formulation with direct regression heads that predict MOS as a scalar output, and should analyze performance by anatomy, dose level, and MOS range. Another promising direction is to extend the task beyond scalar MOS prediction toward reasoning-oriented image-quality assessment, where the model predicts a score together with clinically grounded explanations of noise, artifacts, contrast loss, and diagnostic acceptability.
 
 \section{Conclusion}
-This report documents a paper-style LDCT IQA pipeline based on MOS supervision and VLM adaptation. The final parameter studies show that supervised adaptation is the strongest tested approach: the selected low-rank SFT run reaches SROCC 0.932 with complete prediction coverage. GRPO remains viable when initialized from SFT, but the tested refinements do not surpass the supervised models. The repository structure supports further experiments with regression heads, SFT adapters, and reward-based refinement using the same preprocessing and evaluation interfaces.
+This work studies MOS-based LDCT image-quality assessment as generative scalar prediction with a medical VLM. The experiments show that supervised fine-tuning provides the most reliable adaptation, combining strong rank correlation with complete prediction coverage. GRPO improves over direct prompting only when initialized from a supervised adapter, but the best reward-refined model remains below SFT and shows signs of score-range compression. These findings support supervised calibration as the primary training signal for this task, with GRPO requiring stronger reward and calibration design before it can serve as a robust refinement stage.
 
 \bibliographystyle{unsrt}
 \bibliography{references}

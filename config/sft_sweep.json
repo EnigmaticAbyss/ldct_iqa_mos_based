@@ -38,31 +38,61 @@
         "lora_dropout": 0.05
       }
     },
-    {
-      "name": "e2_lower_lr1e-4_r16_drop005",
-      "train": {
-        "num_train_epochs": 2.0,
-        "learning_rate": 0.0001,
+        {
+            "name": "e2_lower_lr1e-4_r16_drop005",
+            "train": {
+                "num_train_epochs": 2.0,
+                "learning_rate": 0.0001,
         "lora_r": 16,
         "lora_alpha": 32,
-        "lora_dropout": 0.05
-      }
-    },
-    {
-      "name": "e2_low_rank_lr2e-4_r8_drop005",
-      "train": {
-        "num_train_epochs": 2.0,
-        "learning_rate": 0.0002,
+                "lora_dropout": 0.05
+            }
+        },
+        {
+            "name": "e2_lowest_lr5e-5_r16_drop005",
+            "train": {
+                "num_train_epochs": 2.0,
+                "learning_rate": 0.00005,
+                "lora_r": 16,
+                "lora_alpha": 32,
+                "lora_dropout": 0.05
+            }
+        },
+        {
+            "name": "e2_low_rank_lr2e-4_r8_drop005",
+            "train": {
+                "num_train_epochs": 2.0,
+                "learning_rate": 0.0002,
         "lora_r": 8,
         "lora_alpha": 16,
-        "lora_dropout": 0.05
-      }
-    },
-    {
-      "name": "e2_higher_dropout_lr2e-4_r16_drop010",
-      "train": {
-        "num_train_epochs": 2.0,
-        "learning_rate": 0.0002,
+                "lora_dropout": 0.05
+            }
+        },
+        {
+            "name": "e2_high_rank_lr2e-4_r32_drop005",
+            "train": {
+                "num_train_epochs": 2.0,
+                "learning_rate": 0.0002,
+                "lora_r": 32,
+                "lora_alpha": 64,
+                "lora_dropout": 0.05
+            }
+        },
+        {
+            "name": "e2_no_dropout_lr2e-4_r16_drop000",
+            "train": {
+                "num_train_epochs": 2.0,
+                "learning_rate": 0.0002,
+                "lora_r": 16,
+                "lora_alpha": 32,
+                "lora_dropout": 0.0
+            }
+        },
+        {
+            "name": "e2_higher_dropout_lr2e-4_r16_drop010",
+            "train": {
+                "num_train_epochs": 2.0,
+                "learning_rate": 0.0002,
         "lora_r": 16,
         "lora_alpha": 32,
         "lora_dropout": 0.1
