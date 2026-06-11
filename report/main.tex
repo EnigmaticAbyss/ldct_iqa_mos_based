@@ -50,7 +50,7 @@ In this work, we systematically compare direct prompting, SFT, GRPO initialized 
 \begin{figure*}[t]
   \centering
   \resizebox{0.98\textwidth}{!}{\input{figures/training_pipeline}}
-  \caption{Overview of the LDCT MOS prediction pipeline. A shared preprocessing stage converts LDCT images and MOS annotations into normalized PNG paths and JSONL records. Chat-formatted Arrow datasets support the SFT and GRPO paths, and TRL \cite{trl} is used for both generative adaptation stages.}
+  \caption{Overview of the LDCT MOS prediction pipeline. A shared preprocessing stage converts LDCT images and MOS annotations into normalized PNG paths and JSONL records. Chat-formatted Arrow datasets support the SFT and GRPO paths used for generative adaptation.}
   \label{fig:training-pipeline}
 \end{figure*}
 
@@ -114,7 +114,7 @@ Invalid or unparsable completions receive a fixed negative reward. We evaluate G
 \section{Experimental Setup}
 The available dataset contains 1,300 annotated LDCT images: 1,000 development images and 300 held-out test images. We reserve 10\% of the development set for validation using a fixed random seed, resulting in 900 training, 100 validation, and 300 test samples. All experiments use these fixed splits, the same preprocessing, the same model family, and a shared evaluation protocol. Across runs, only the model initialization and trainer hyperparameters are varied, keeping data processing and scoring fixed across direct prompting, SFT, and GRPO.
 
-Training and sweep experiments are executed on an A100 GPU through a SLURM-managed environment. MedGemma 1.5 is loaded with 4-bit quantization and bf16 computation following memory-efficient quantized fine-tuning practice \cite{dettmers2023qlora}, and adaptation is performed with LoRA adapters using a fixed random seed. The SFT sweeps vary learning rate, LoRA rank, dropout, and epoch count, while the GRPO sweeps vary initialization, learning rate, KL coefficient, sampling temperature, candidate-group size, and completion length. All generative models are evaluated with the same MOS parser, metric computation, and coverage accounting, ensuring that performance differences reflect the adaptation strategy and hyperparameter setting rather than changes in the evaluation procedure.
+Training and sweep experiments are executed on an A100 GPU. MedGemma 1.5 is loaded with 4-bit quantization and bf16 computation following memory-efficient quantized fine-tuning practice \cite{dettmers2023qlora}, and adaptation is performed with LoRA adapters using TRL training utilities \cite{trl} and a fixed random seed. The SFT sweeps vary learning rate, LoRA rank, dropout, and epoch count, while the GRPO sweeps vary initialization, learning rate, KL coefficient, sampling temperature, candidate-group size, and completion length. All generative models are evaluated with the same MOS parser, metric computation, and coverage accounting, ensuring that performance differences reflect the adaptation strategy and hyperparameter setting rather than changes in the evaluation procedure.
 
 \section{Evaluation}
 All methods are evaluated on the held-out test split under a shared parsing and scoring protocol. Following common MOS-based IQA evaluation practice for LDCT quality assessment \cite{lee2025low}, we report absolute error, correlation, and prediction-coverage metrics. Let $\hat{y}_i$ denote the predicted MOS and $y_i$ the ground-truth MOS. The primary error metrics are
