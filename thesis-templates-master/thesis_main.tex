@@ -1,0 +1,101 @@
+% Document class for LME theses: lmedoc
+% Possible types of theses:
+% bt - Bachelor's thesis
+% mt - Master's thesis
+% diss - Dissertation
+% sa - Student thesis
+% fp - Forschungspraktikum
+% pa - Projektarbeit
+\documentclass[english,pa]{lmedoc/lmedoc}
+
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[utf8]{inputenc}
+  \usepackage[T1]{fontenc}
+  \usepackage{lmodern}
+\else
+  \ifXeTeX
+     \usepackage{fontspec}
+  \else
+     \usepackage{luatextra}
+  \fi
+\fi
+
+\usepackage{lmedoc/packages}
+\usetikzlibrary{arrows.meta,calc,fit,positioning}
+\urlstyle{tt}
+\input{abbreviations.tex}
+
+% Suppress messages because of underfull hbox; these are not a problem.
+\hbadness=10000
+
+\makeatletter
+\DeclareRobustCommand\onedot{\futurelet\@let@token\@onedot}
+\newcommand{\@onedot}{\ifx\@let@token.\else.\null\fi\xspace}
+\makeatother
+
+\addbibresource{literature.bib}
+
+\pagenumbering{roman}
+
+\begin{document}
+\clearpage
+\begin{deckblatt}
+  \Titel{MOS-Based Low-Dose CT Image Quality Assessment\\with Vision-Language Models}
+  \Name{Mousavi}
+  \Vorname{Arash}
+  \Geburtsort{Tehran}
+  \Geburtsdatum{08.12.1999}
+  \Betreuer{Yipeng Sun}
+  \Start{October 13, 2025}
+  \Ende{\today}
+\end{deckblatt}
+
+\cleardoublepage
+Ich versichere, dass ich die Arbeit ohne fremde Hilfe und ohne Benutzung
+anderer als der angegebenen Quellen angefertigt habe und dass die Arbeit
+in gleicher oder "ahnlicher Form noch keiner anderen Pr"ufungsbeh"orde
+vorgelegen hat und von dieser als Teil einer Pr"ufungsleistung
+angenommen wurde. Alle Ausf"uhrungen, die w"ortlich oder sinngem"a"s
+"ubernommen wurden, sind als solche gekennzeichnet.
+
+\cleardoublepage
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+Noise and artifact patterns in low-dose computed tomography (LDCT) can affect diagnostic confidence and motivate radiologist-aligned image quality assessment. This work investigates mean opinion score (MOS)-based LDCT image quality assessment using MedGemma, a medical vision-language model (VLM). We fine-tune MedGemma and compare supervised fine-tuning (SFT) with group relative policy optimization (GRPO), considering GRPO initialized from either the base VLM or an SFT adapter. The results show that SFT alone is the most effective strategy under the evaluated settings. GRPO performs better when initialized from an SFT adapter than from the base VLM; however, the additional refinement stage does not surpass SFT alone.\footnote{Code: \url{https://github.com/EnigmaticAbyss/ldct_iqa_mos_based}}
+
+\vspace{1em}
+\noindent\textbf{Keywords:} low-dose CT, image quality assessment, MOS prediction, MedGemma, vision-language model, supervised fine-tuning, group relative policy optimization
+
+\cleardoublepage
+\tableofcontents
+
+\cleardoublepage
+\pagenumbering{arabic}
+
+\include{introduction}
+\include{background}
+\include{methodology}
+\include{evaluation}
+\include{discussion}
+\include{conclusion}
+
+% Appendix content is currently empty; uncomment if an appendix is added.
+%\appendix
+%\include{appendix}
+
+\cleardoublepage
+\printunsrtglossary[type=abbreviations]
+
+\cleardoublepage
+\addcontentsline{toc}{chapter}{\listfigurename}
+\listoffigures
+
+\cleardoublepage
+\addcontentsline{toc}{chapter}{\listtablename}
+\listoftables
+
+\cleardoublepage
+\selectlanguage{english}{\addcontentsline{toc}{chapter}{\bibname}}
+\printbibliography
+\end{document}

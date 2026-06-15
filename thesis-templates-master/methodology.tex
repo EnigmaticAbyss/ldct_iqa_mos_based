@@ -1,0 +1,49 @@
+\chapter{Dataset and Preprocessing}
+Figure~\ref{fig:training-pipeline} summarizes the data flow and the two adaptation paths evaluated in this work. The data are derived from the LDCTIQAC 2023 benchmark \cite{lee2025low} and consist of two-dimensional LDCT slices with radiologist MOS annotations. Raw images are stored as TIFF files with separate MOS annotation files. The preprocessing stage converts source scans into model-ready PNG images and writes split-specific JSONL files:
+\begin{equation}
+  \mathcal{D}=\{(x_i, y_i)\}_{i=1}^{N},
+\end{equation}
+where $x_i$ is an LDCT image and $y_i$ is its MOS target. Preprocessing is intentionally lightweight: images are converted to a common PNG representation and normalized with either min--max or percentile scaling, without aggressive denoising or contrast enhancement. This choice preserves the noise texture and low-dose artifacts that are part of the quality assessment target.
+
+The processed samples are first represented as records containing an image reference and MOS value. For generative fine-tuning, these records are converted into chat-style Arrow datasets because this representation integrates efficiently with dataset libraries used in transformer training workflows \cite{lhoest2021datasets}, while keeping the core image normalization independent from the training objective.
+
+\chapter{Method}
+\section{Problem Formulation}
+Given an LDCT image $x_i$, the goal is to predict a scalar MOS value $\hat{y}_i$ that matches the reference score $y_i$. We study this as an image-conditioned prediction problem using MedGemma as the base VLM. The evaluated methods produce a textual answer that is parsed into a scalar MOS, and all predictions are evaluated on the same MOS scale.
+
+\section{Prompted VLM Baseline}
+The prompted baseline evaluates the base VLM without task-specific fine-tuning. Each image is paired with an instruction asking the model to predict the MOS score. This baseline tests whether the pretrained medical VLM can produce usable scalar estimates before any task-specific adaptation.
+
+\section{Supervised Fine-Tuning}
+For supervised fine-tuning, each training sample is converted into a multimodal chat example containing an image placeholder, a MOS prediction instruction, and an assistant response with the target score. As illustrated in Figure~\ref{fig:sft-prompt-flow}, the assistant target is formatted as a compact JSON response, e.g. \texttt{\{"rating": 2.5\}}, which makes the generated score easier to parse consistently. LoRA adapters are trained on top of the base VLM so that task-specific parameters can be learned while preserving the pretrained medical representation.
+
+\begin{figure}[!htbp]
+  \centering
+  \resizebox{\textwidth}{!}{\input{figures/sft_prompt_flow}}
+  \caption{SFT prompt construction for MOS prediction. Each LDCT image is paired with a user instruction and the assistant target contains only the MOS value in a compact JSON format. During fine-tuning, the loss is applied to the assistant response while LoRA adapts the MedGemma VLM.}
+  \label{fig:sft-prompt-flow}
+\end{figure}
+
+At inference time, generated text is parsed into a scalar score. Invalid generations are tracked separately, making prediction coverage an explicit evaluation metric:
+\begin{equation}
+  r_{\mathrm{valid}} = \frac{N_{\mathrm{valid}}}{N_{\mathrm{total}}}.
+\end{equation}
+
+\section{GRPO Refinement}
+GRPO is evaluated as a reward-based alternative to purely supervised adaptation. Instead of training on assistant targets, the model receives prompt-only image-chat examples and generates a group of candidate MOS responses for each image. Each completion is parsed into a scalar prediction and rewarded according to its closeness to the reference MOS:
+\begin{equation}
+  R(\hat{y},y)=-|\hat{y}-y|.
+\end{equation}
+Invalid or unparsable completions receive a fixed negative reward. Both initialization choices use the same reward, parsing, and evaluation procedure.
+
+\begin{figure}[t]
+  \centering
+  \resizebox{\textwidth}{!}{\input{figures/grpo_prompt_flow}}
+  \caption{GRPO prompt and reward flow for MOS prediction. The model receives the same prompt-only multimodal input but samples a group of candidate MOS responses instead of learning from a fixed assistant target. Parsed scores are compared with the reference MOS using the absolute-error reward, and the reward signal updates the LoRA adapter.}
+  \label{fig:grpo-prompt-flow}
+\end{figure}
+
+\chapter{Experimental Setup}
+The available dataset contains 1,300 annotated LDCT images: 1,000 development images and 300 held-out test images. We reserve 10\% of the development set for validation using a fixed random seed, resulting in 900 training, 100 validation, and 300 test samples. All experiments use these fixed splits, the same preprocessing, the same model family, and a shared evaluation protocol. Across runs, only the model initialization and trainer hyperparameters are varied, keeping data processing and scoring fixed across direct prompting, SFT, and GRPO.
+
+Training and sweep experiments are executed on an A100 GPU. MedGemma 1.5 is loaded with 4-bit quantization and bf16 computation following memory-efficient quantized fine-tuning practice \cite{dettmers2023qlora}, and adaptation is performed with LoRA adapters using TRL training utilities \cite{trl} and a fixed random seed. The controlled sweeps are summarized in the parameter-study tables. All generative models are evaluated with the same MOS parser, metric computation, and coverage accounting, ensuring that performance differences reflect the adaptation strategy and hyperparameter setting rather than changes in the evaluation procedure.

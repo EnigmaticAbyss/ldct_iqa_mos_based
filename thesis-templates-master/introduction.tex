@@ -1,0 +1,25 @@
+\chapter{Introduction}
+Low-dose computed tomography (LDCT) is clinically attractive because it reduces radiation exposure while preserving diagnostically useful image information. Lower acquisition doses, however, can amplify noise and introduce streak artifacts that impair image quality. Reliable image quality assessment (IQA) is therefore important for balancing radiation dose against diagnostic utility and for evaluating reconstruction and restoration methods. The LDCTIQAC 2023 benchmark reflects this need by framing LDCT IQA as a no-reference prediction task aligned with radiologists' assessments \cite{lee2025low}.
+
+Vision-language models (VLMs) provide a promising foundation for this task because they combine visual representations with instruction-conditioned prediction. MedGemma 1.5 extends open medical VLMs with capabilities for medical image interpretation, including CT imaging \cite{sellergren2026medgemma}. Adapting such a model to MOS prediction is not straightforward: the model must produce a calibrated scalar judgment from an LDCT image, while the available domain-specific training data remain limited. We therefore formulate LDCT IQA as an image-conditioned MOS prediction task and fine-tune MedGemma using parameter-efficient low-rank adaptation (LoRA) \cite{hu2022lora}.
+
+Recent prompt-driven IQA studies show that multimodal models can capture perceptual quality cues, but fine-grained score discrimination remains challenging without task-specific alignment \cite{wu2024comprehensive}. Medical IQA methods have also begun to use prompt-guided foundation models and radiology-style context \cite{xun2025mediqa,rifa2026capiqa}. LDCT MOS prediction is a stricter setting: the model must map subtle noise texture, streak artifacts, and contrast loss to a radiologist-aligned scalar score rather than only producing a qualitative assessment.
+
+This scalar prediction setting also exposes failure modes that are less visible in free-form medical image description. A model may generate a syntactically valid answer while compressing the score range, preserving the relative ordering of cases but producing biased absolute values, or failing to return a parseable score at all. These issues are important for LDCT IQA because practical use requires both calibrated MOS estimates and reliable ranking of images by perceived degradation. We therefore treat score accuracy, rank consistency, and valid-output coverage as complementary evidence rather than relying on a single metric.
+
+A central question is which adaptation strategy is most effective for this task. Supervised fine-tuning (SFT) directly learns from image--MOS pairs. Group relative policy optimization (GRPO), introduced as a memory-efficient variant of proximal policy optimization \cite{schulman2017ppo,shao2024deepseekmath}, enables reward-based optimization by favoring generated scores closer to the reference MOS. This raises a practical question: can GRPO refine a supervised adapter and improve MOS prediction, or does SFT already provide the stronger adaptation strategy?
+
+In this work, we systematically compare direct prompting, SFT, GRPO initialized from the base VLM, and sequential SFT--GRPO adaptation using MedGemma. We evaluate multiple SFT and GRPO configurations under a shared preprocessing and evaluation protocol. Our main contributions are:
+\begin{itemize}
+  \item We instantiate a MedGemma-based generative MOS predictor for no-reference LDCT IQA using parameter-efficient LoRA adapters.
+  \item We compare supervised adaptation and MOS-reward GRPO across initialization regimes.
+  \item We analyze score error, rank consistency, prediction coverage, and hyperparameter sensitivity across completed SFT and GRPO sweeps.
+  \item We provide the preprocessing, adaptation, and evaluation pipeline to support reproducible comparison of generative MOS predictors for LDCT IQA.
+\end{itemize}
+
+\begin{figure}[t]
+  \centering
+  \resizebox{\textwidth}{!}{\input{figures/training_pipeline}}
+  \caption{Overview of the LDCT MOS prediction pipeline. A shared preprocessing stage converts LDCT images and MOS annotations into normalized PNG paths and JSONL records. Chat-formatted Arrow datasets support the SFT and GRPO paths used for generative adaptation.}
+  \label{fig:training-pipeline}
+\end{figure}

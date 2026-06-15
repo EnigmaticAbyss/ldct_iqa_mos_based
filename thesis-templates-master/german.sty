@@ -1,0 +1,14 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{german}[2026/06/13 local compatibility shim]
+
+% The bundled LME template expects the legacy german.sty package.  Modern
+% TeX Live installations often ship Babel language files instead, so this
+% shim provides the small interface required by lmedoc/twolang.sty.
+\RequirePackage[english]{babel}
+
+\makeatletter
+\providecommand{\english}{english}
+\providecommand{\german}{english}
+\@ifundefined{l@german}{\newlanguage\l@german}{}
+\providecommand{\captionsgerman}{}
+\makeatother
